@@ -38,8 +38,7 @@ def create_rawedac_df(): # Creates a dataframe from the raw data provided by MEX
     df = df.sort_values(by="date")
     df.set_index('date')
     return df 
-
-
+  
 def zero_set_correct(): # Returns the zero-set corrected dataframe of the raw EDAC counter
     df = create_rawedac_df()
     diffs = df.edac.diff() # The difference in counter from row to row
@@ -52,6 +51,3 @@ def zero_set_correct(): # Returns the zero-set corrected dataframe of the raw ED
             df.loc[indices[i]:indices[i+1]-1,'edac'] = df.loc[indices[i]:indices[i+1]-1,'edac'] + prev_value
     return df 
 
-
-
-print(zero_set_correct())
