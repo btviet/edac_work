@@ -29,14 +29,15 @@ import pandas as pd
 
 
 ''' Zero set correction'''
-def create_rawedac_df(): # Creates a dataframe from the raw data provided by MEX
-    df = pd.read_csv(path + '/raw_files/MEX_EDAC.txt',skiprows=12, sep="\t",parse_dates = ['# DATE TIME'])
-    df2 = pd.read_csv(path + '/raw_files/MEX_NDMW0D0G_2022_02_17_16_13_50.116.txt', skiprows=15,  sep="\t",parse_dates = ['# DATE TIME'])
+def create_rawedac_df(): # Creates a dataframe from the raw data provided by 
+    path = 'files/' # The location where the EDAC files are
+    df = pd.read_csv('files/MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt',skiprows=12, sep="\t",parse_dates = ['# DATE TIME'])
     df.rename(columns={'# DATE TIME': 'date', 'NDMW0D0G [MEX]': 'edac'}, inplace=True) # Changing the name of the columns, old_name: new_name
-    df2.rename(columns={'# DATE TIME': 'date', 'NDMW0D0G - AVG - 1 Non [MEX]': 'edac'}, inplace=True) # Changing the name of the columns, old_name: new_name
-    df = df.append(df2)
     df = df.drop_duplicates()
     df = df.reset_index(drop=True)
     df = df.sort_values(by="date")
     df.set_index('date')
     return df 
+
+
+print(df)
