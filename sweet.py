@@ -31,23 +31,26 @@ import pandas as pd
 ''' Zero set correction'''
 def create_rawedac_df(): # Creates a dataframe from the raw data provided by MEX
     path = 'files/' # The location where the EDAC files are
-    df = pd.read_csv('files/MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt',skiprows=12, sep="\t",parse_dates = ['# DATE TIME'])
-    df.rename(columns={'# DATE TIME': 'date', 'NDMW0D0G [MEX]': 'edac'}, inplace=True) # Changing the name of the columns, old_name: new_name
+    df = pd.read_csv(path+'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt',skiprows=15, sep="\t",parse_dates = ['# DATE TIME'])
+    df.rename(columns={'# DATE TIME': 'date', 'NDMW0D0G - AVG - 1 Non [MEX]': 'edac'}, inplace=True) 
     df = df.drop_duplicates()
     df = df.reset_index(drop=True)
     df = df.sort_values(by="date")
     df.set_index('date')
     return df 
-  
+
 def zero_set_correct(): # Returns the zero-set corrected dataframe of the raw EDAC counter
     df = create_rawedac_df()
     diffs = df.edac.diff() # The difference in counter from row to row
     indices = np.where(diffs<0)[0] #  Finding the indices where the EDAC counter decreases instead of increases or stays the same
+    number_of_zerosets = len(indices)
     for i in range(0, len(indices)):
         prev_value = df.loc[[indices[i]-1]].values[-1][-1]
         if i == len(indices)-1: # The last time the EDAC counter goes to zero
             df.loc[indices[i]:,'edac'] = df.loc[indices[i]:,'edac'] + prev_value # Add the previous
         else:
             df.loc[indices[i]:indices[i+1]-1,'edac'] = df.loc[indices[i]:indices[i+1]-1,'edac'] + prev_value
+    print(df)
     return df 
 
+zero_set_correct()
