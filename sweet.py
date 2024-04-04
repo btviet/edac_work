@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import time
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #from matplotlib.gridspec import GridSpec
 #from pandas.plotting import register_matplotlib_converters
 #from sqlalchemy import all_
@@ -29,8 +29,8 @@ import time
 #upper_noiselimit =  0.7187784869509977 
 
 
-def create_rawedac_df(raw_edac_filename): # Creates a dataframe from the raw data provided by MEX
-    df = pd.read_csv(raw_edac_filename,skiprows=15, sep="\t",parse_dates = ['# DATE TIME'])
+def create_rawedac_df(raw_edac_file): # Creates a dataframe from the raw data provided by MEX
+    df = pd.read_csv(raw_edac_file,skiprows=15, sep="\t",parse_dates = ['# DATE TIME'])
     columns = list(df.columns.values)
     df.rename(columns={columns[0]: 'date', columns[1]: 'edac'}, inplace=True) 
     df = df.drop_duplicates()
@@ -39,9 +39,9 @@ def create_rawedac_df(raw_edac_filename): # Creates a dataframe from the raw dat
     df.set_index('date')
     return df 
 
-def zero_set_correct(raw_edac_filename): # Returns the zero-set corrected dataframe of the raw EDAC counter
+def zero_set_correct(raw_edac_file): # Returns the zero-set corrected dataframe of the raw EDAC counter
     start_time = time.time()
-    df = create_rawedac_df(raw_edac_filename)
+    df = create_rawedac_df(raw_edac_file)
     diffs = df.edac.diff() # The difference in counter from row to row
     indices = np.where(diffs<0)[0] #  Finding the indices where the EDAC counter decreases instead of increases or stays the same
     print("This EDAC was zero-set ", len(indices), " number of times.")
@@ -54,36 +54,10 @@ def zero_set_correct(raw_edac_filename): # Returns the zero-set corrected datafr
     print('Time taken to perform zero-set correction: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
     return df 
 
-def resample_corrected_edac_old(): # Resamples the zero set corrected EDAC counter to have one reading each day, and save the resulting dataframe to a textfile
+
+def resample_corrected_edac(raw_edac_file): # Resamples the zero set corrected EDAC counter to have one reading each day, and save the resulting dataframe to a textfile
     start_time = time.time()
-    df = zero_set_correct() # Retrieve the zero-set corrected dataframe
-    df_list = [] # Initialize list to have the resampled values
-    lastdate = df['date'][df.index[-1]].date() # The last date of the EDAC dataset
-    currentdate = df['date'][0].date() # Set currentdate to be the first date of the EDAC dataset
-    end_reached = False # Variable to be changed to True when the loop has reached the last date available in the EDAC dataset
-    print("starting")
-    while end_reached != True:
-        day_indices = np.where(df['date'].dt.date == currentdate) # The indices in df for where same date as currentdate
-        if len(day_indices[0]) == 0: # If date does not exist 
-            df_list.append([currentdate, lastreading]) # Let the missing date have the reading of the previous date          
-        else:
-            lastreading = df['edac'][day_indices[0][-1]]  # The last reading of the current date
-            df_list.append([currentdate, lastreading]) # Add the date and the last reading to the list
-        currentdate =  currentdate + pd.Timedelta(days=1) # go to next day
-        if lastdate-currentdate < pd.Timedelta('0hr0m0s'): # if the currentdate is past the lastdate
-            end_reached = True 
-    df_resampled =  pd.DataFrame(df_list, columns=['date', 'edac'])
-    path = 'files/'
-    df_resampled.to_csv(path + "resampled_corrected_edac_old.txt", sep='\t') # Save to file
-    print("file created")
-    print('Time taken to resample to daily frequency: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
-
-
-
-
-def resample_corrected_edac(raw_edac_filename): # Resamples the zero set corrected EDAC counter to have one reading each day, and save the resulting dataframe to a textfile
-    start_time = time.time()
-    df = zero_set_correct(raw_edac_filename) # Retrieve the zero-set corrected dataframe
+    df = zero_set_correct(raw_edac_file) # Retrieve the zero-set corrected dataframe
     df = df.set_index('date') 
     df_resampled =  df.resample('D').last().ffill()
     df_resampled.reset_index(inplace=True)
@@ -94,9 +68,80 @@ def resample_corrected_edac(raw_edac_filename): # Resamples the zero set correct
     print('Time taken to resample to daily frequency: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
 
 
+def creating_df(): # Retrieves the zero set corrected raw EDAC counter
+    start_time = time.time()
+    df = pd.read_csv(path +'resampled_corrected_edac.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    df.set_index('date') # set index to be the dates, instead of 0 1 2 ...
+    df.drop(df.columns[df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True) # Removing the extra column with indices
+    print(df)
+    print('Time taken to read resampled EDAC to dataframe: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
+    return df 
+
+
+def create_rate_df_old(days_window): # Function to calculate a rate for each date
+    start_time = time.time()
+    # day window is the an odd number
+    df_list = [] # Initialize list to keep dates and daily rates
+    df = creating_df() # df with date and the value of the EDAC counter
+    startdate = df['date'][df.index[days_window//2]].date() # The starting date in the data, includes the time
+    lastdate = df['date'][df.index[-1]].date() # The last date and time in the dataset
+    print("The starting date is ", startdate, "\nThe last date is ", lastdate)
+    currentdate = startdate # Start from the first date
+    end_reached = False
+    while not end_reached:
+        beginning_window = (currentdate-pd.Timedelta(days=days_window//2)) # Place the current date to be the middle of the window
+        end_window = (currentdate + pd.Timedelta(days=days_window//2))
+        beginning_values = df.iloc[np.where(df['date'].dt.date == beginning_window)[0][0]] # Date and EDAC value of beginning window
+        end_values = df.iloc[np.where(df['date'].dt.date == end_window)[0][0]] # Date and EDAC of ending window
+        diff = end_values-beginning_values
+        diff_edac = diff[1] # Difference in EDAC value
+        diff_days = diff[0] # Difference in days
+        number_of_days = diff_days.days+1 # Number of days in the window
+        current_edac_rate = diff_edac/number_of_days # Calculate the EDAC rate
+        df_list.append([currentdate, current_edac_rate])
+        currentdate = currentdate + pd.Timedelta(days=1) # Iterate to next day
+        if lastdate-currentdate < pd.Timedelta(days=days_window//2): # Stopping condition for while-loop
+            end_reached = True
+        if currentdate.year != (currentdate-pd.Timedelta(days=1)).year: # For observation while running code
+            print("Year reached: ", currentdate.year)
+    df_rate =  pd.DataFrame(df_list, columns=['date', 'rate']) # Convert the list to a dataframe
+    print('Time taken to create rate_df ', '{:.2f}'.format(time.time() - start_time) , "seconds")
+    ## Initial time was around 33 seconds. 
+    return df_rate # Return date, rate dataframe
+
+
+
+def create_rate_df(days_window):
+    start_time = time.time()
+    df = creating_df() # Fetch resampled EDAC data
+    startdate = df['date'][df.index[days_window//2]].date() # The starting date in the data, includes the time
+    lastdate = df['date'][df.index[-days_window//2]].date() # The last date and time in the dataset
+    print("The starting date is ", startdate, "\nThe last date is ", lastdate)
+
+    df['startwindow_edac'] = df['edac'].shift(days_window//2)
+    df['startwindow_date'] = df['date'].shift(days_window//2)
+    df['endwindow_date'] = df['date'].shift(-(days_window//2))
+    df['endwindow_edac'] = df['edac'].shift(-(days_window//2))
+
+    df['edac_diff'] = df['endwindow_edac'] - df['startwindow_edac']
+    df['rate'] = df['edac_diff'] / days_window
+
+ 
+    new_df = df[['date', 'rate']] # Remove all columns except for the date and the daily rate
+    new_df = new_df[new_df['rate'].notna()] # Remove rows without a daily rate
+
+    new_df.to_csv(path + str(days_window)+ '_daily_rate.txt', sep='\t') # Save to file    
+    print("File  ", str(days_window) +"_daily_rate.txt created")
+    print('Time taken to create rate_df ', '{:.2f}'.format(time.time() - start_time) , "seconds")
+
+
+path = 'files/' # Path of where files are located
+raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
+raw_window = 5 # The time bin for calculating the rate for the EDAC curve to be normalized
 
 def main():
-    raw_edac_filename = 'files/MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt'
-    resample_corrected_edac(raw_edac_filename)
+
+    #resample_corrected_edac(path+raw_edac_filename) # This creates the resampled EDAC data file. Only needs to be done once for each file.
+    create_rate_df(raw_window)
 if __name__ == "__main__":
     main()
