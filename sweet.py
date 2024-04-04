@@ -138,10 +138,11 @@ def create_rate_df(days_window):
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 raw_window = 5 # The time bin for calculating the rate for the EDAC curve to be normalized
-
+smooth_window = 11 # The time bin for calculating the rate for the curve that is to be smoothed
 def main():
 
     #resample_corrected_edac(path+raw_edac_filename) # This creates the resampled EDAC data file. Only needs to be done once for each file.
-    create_rate_df(raw_window)
+    create_rate_df(smooth_window)
+
 if __name__ == "__main__":
     main()
