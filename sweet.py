@@ -2,13 +2,16 @@ import numpy as np
 import pandas as pd
 import time
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+from scipy.signal import savgol_filter
+import scipy.optimize
 #from matplotlib.gridspec import GridSpec
 #from pandas.plotting import register_matplotlib_converters
 #from sqlalchemy import all_
 #register_matplotlib_converters()
-#from datetime import datetime, timedelta
+
 #import statistics
-#from scipy.signal import savgol_filter
+
 #import os
 #import sys
 #import scipy.stats
@@ -178,6 +181,35 @@ def plot_rates_all(rate_df):
     plt.show()
 
 
+def fit_sin(tt, yy):
+    '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
+    tt = np.array(tt)
+    yy = np.array(yy)
+    ff = np.fft.fftfreq(len(tt), (tt[1]-tt[0]))   # assume uniform spacing
+    Fyy = abs(np.fft.fft(yy))
+    guess_freq = abs(ff[np.argmax(Fyy[1:])+1])   # excluding the zero frequency "peak", which is related to offset
+    guess_amp = np.std(yy) * 2.**0.5
+    guess_offset = np.mean(yy)
+    guess = np.array([guess_amp, 2.*np.pi*guess_freq, 0., guess_offset])
+
+    def sinfunc(t, A, w, p, c):  return A * np.sin(w*t + p) + c
+    popt, pcov = scipy.optimize.curve_fit(sinfunc, tt, yy, p0=guess)
+    A, w, p, c = popt
+    f = w/(2.*np.pi)
+    fitfunc = lambda t: A * np.sin(w*t + p) + c
+    return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)}
+    
+def gcr_edac():
+    rate_df = read_rate_df(11)
+
+    start_date = rate_df['date'].iloc[0]
+
+    tt = np.array([(x - start_date).days for x in rate_df['date']])
+    yy = rate_df['rate']
+    res = fit_sin(tt, yy)
+    x_datetime = np.array([start_date + pd.Timedelta(days=x) for x in tt])
+    df = pd.DataFrame({'date':x_datetime,'rate':  res["fitfunc"](tt)})
+    return df
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'patched_mex_edac.txt'
@@ -194,11 +226,12 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
 def main():
 
-    process_new_raw_edac()
+    #process_new_raw_edac()
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
 
     #show_timerange(pd.to_datetime('2017-09-12 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
+    gcr_edac()
     print("End")
 if __name__ == "__main__":
     main()
