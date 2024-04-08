@@ -120,6 +120,7 @@ def read_rate_df(days_window):
     df.set_index('date') # set index to be the dates, instead of 0 1 2 ...
     df.drop(df.columns[df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True) # Removing the extra column with indices
     print('Time taken to read daily rates to dataframe: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
+    df =df[(df['date'] < pd.to_datetime('2022-02-14 23:59:00'))] # valid timeframe
     return df 
 
 def remove_spikes_for_smoothing(smooth_window):
@@ -181,7 +182,7 @@ def plot_rates_all(rate_df):
     plt.show()
 
 
-def fit_sin(tt, yy):
+def fit_sin(tt, yy): # Helping function for gcr_edac()
     '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
     tt = np.array(tt)
     yy = np.array(yy)
@@ -200,7 +201,7 @@ def fit_sin(tt, yy):
     return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)}
     
 def gcr_edac():
-    rate_df = read_rate_df(11)
+    rate_df = read_rate_df(smooth_window)
 
     start_date = rate_df['date'].iloc[0]
 
@@ -210,6 +211,55 @@ def gcr_edac():
     x_datetime = np.array([start_date + pd.Timedelta(days=x) for x in tt])
     df = pd.DataFrame({'date':x_datetime,'rate':  res["fitfunc"](tt)})
     return df
+
+def create_normalized_rates(): # Return the normalized EDAC rate
+    gcr_component = gcr_edac()
+    first_gcr = gcr_component['date'].iloc[0]
+    last_gcr = gcr_component['date'].iloc[-1]
+    rate_df = read_rate_df(raw_window)
+    first_rate = rate_df['date'].iloc[0]
+    last_rate = rate_df['date'].iloc[-1]
+
+    if first_gcr >= first_rate:
+        rate_df =  rate_df[rate_df['date'] >= first_gcr]
+    else:
+        gcr_component = gcr_component[gcr_component['date'] >= first_rate]
+
+    if last_gcr >= last_rate:
+        gcr_component = gcr_component[gcr_component['date'] <= last_rate]
+        
+    else:
+        rate_df = rate_df[rate_df['date'] <= last_gcr]
+
+    rate_df.reset_index(drop=True, inplace=True)
+    gcr_component.reset_index(drop=True, inplace=True)
+
+    normalized_df = rate_df.copy()
+    normalized_df['gcr_component'] = gcr_component['rate']
+    normalized_df['normalized_rate'] = normalized_df['rate']/normalized_df['gcr_component']
+    
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
+    
+    ax1.plot(normalized_df['date'],normalized_df['rate'], label='EDAC daily rate, ' + str(raw_window) + ' day swindow')
+    ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='GCR component of EDAC daily rate')
+    ax2.plot(normalized_df['date'], normalized_df['normalized_rate'], label='Normalized daily EDAC rate')
+    ax1.set_ylim([-0.5, 7])
+    ax2.set_ylim([-0.5, 7])
+    #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+    ax2.set_xlabel('Date', fontsize = 12)
+    ax1.set_ylabel('EDAC daily rate', fontsize = 12)
+    ax2.set_ylabel('EDAC normalized daily rate', fontsize = 12)
+    ax2.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+    ax1.grid()
+    ax2.grid()
+    ax1.legend()
+    ax2.legend()
+    plt.tight_layout(pad=1.0)
+    #plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
+    plt.show()
+    normalized_df.to_csv(path + 'normalized_edac.txt', sep='\t', index=False) # Save to file
+
+
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'patched_mex_edac.txt'
@@ -231,7 +281,7 @@ def main():
     #remove_spikes_for_smoothing(smooth_window)
 
     #show_timerange(pd.to_datetime('2017-09-12 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
-    gcr_edac()
+    create_normalized_rates()
     print("End")
 if __name__ == "__main__":
     main()
