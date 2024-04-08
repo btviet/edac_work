@@ -194,11 +194,11 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
 def main():
 
-
+    process_new_raw_edac()
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
 
     #show_timerange(pd.to_datetime('2017-09-12 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
-    print("End.")
+    print("End")
 if __name__ == "__main__":
     main()
