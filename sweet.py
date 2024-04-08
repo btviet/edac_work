@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 #upper_noiselimit =  0.7187784869509977 
 
 
-def create_rawedac_df(raw_edac_file): # Creates a dataframe from the raw data provided by MEX
+def read_rawedac_df(raw_edac_file): # Creates a dataframe from the raw data provided by MEX
     df = pd.read_csv(raw_edac_file,skiprows=15, sep="\t",parse_dates = ['# DATE TIME'])
     columns = list(df.columns.values)
     df.rename(columns={columns[0]: 'date', columns[1]: 'edac'}, inplace=True) 
@@ -39,17 +39,17 @@ def create_rawedac_df(raw_edac_file): # Creates a dataframe from the raw data pr
     df.set_index('date')
     return df 
 
-def read_patched_rawedac(patched_edac):
-    df = pd.read_csv(patched_edac,skiprows=0, sep="\t",parse_dates = ['date'])
+def read_patched_rawedac(patched_edac_path):
+    df = pd.read_csv(patched_edac_path,skiprows=0, sep="\t",parse_dates = ['date'])
     return df
 
-def zero_set_correct(raw_edac_file): # Returns the zero-set corrected dataframe of the raw EDAC counter
+def create_zero_set_correct(raw_edac_file): # Returns the zero-set corrected dataframe of the raw EDAC counter
     start_time = time.time()
-    ### df = create_rawedac_df(raw_edac_file) ## For not patched EDACs
+    ### df = read_rawedac_df(raw_edac_file) ## For not patched EDACs
     df = read_patched_rawedac(raw_edac_file)
     diffs = df.edac.diff() # The difference in counter from row to row
     indices = np.where(diffs<0)[0] #  Finding the indices where the EDAC counter decreases instead of increases or stays the same
-    print("This EDAC was zero-set ", len(indices), " number of times.")
+    print("This EDAC was zero-set ", len(indices), " times.")
     for i in range(0, len(indices)):
         prev_value = df.loc[[indices[i]-1]].values[-1][-1]
         if i == len(indices)-1: # The last time the EDAC counter goes to zero
@@ -57,15 +57,22 @@ def zero_set_correct(raw_edac_file): # Returns the zero-set corrected dataframe 
         else:
             df.loc[indices[i]:indices[i+1]-1,'edac'] = df.loc[indices[i]:indices[i+1]-1,'edac'] + prev_value
     print('Time taken to perform zero-set correction: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
+    df.to_csv(path + 'zerosetcorrected_edac.txt', sep='\t', index=False) # Save to file    
+    print("File  ", "zerosetcorrected_edac.txt created")
     return df 
 
-def resample_corrected_edac(raw_edac_file): # Resamples the zero set corrected EDAC counter to have one reading each day, and save the resulting dataframe to a textfile
+def read_zero_set_correct():
+    df = pd.read_csv(
+        path+'zerosetcorrected_edac.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    return df
+
+def create_resample_corrected_edac(zerosetcorrected_df): # Resamples the zero set corrected EDAC counter to have one reading each day, and save the resulting dataframe to a textfile
     start_time = time.time()
-    df = zero_set_correct(raw_edac_file) # Retrieve the zero-set corrected dataframe
-    df = df.set_index('date') 
-    df_resampled =  df.resample('D').last().ffill()
+    #df = read_zero_set_correct(raw_edac_file) # Retrieve the zero-set corrected dataframe
+    zerosetcorrected_df = zerosetcorrected_df.set_index('date') 
+    df_resampled =  zerosetcorrected_df.resample('D').last().ffill()
     df_resampled.reset_index(inplace=True)
-    path = 'files/' 
+
     ### filename = 'resampled_corrected_edac.txt' ### For not-patched EDACs
     filename = 'resampled_corrected_patched_edac.txt'
     df_resampled.to_csv(path + filename, sep='\t', index=False) # Save to file
@@ -121,7 +128,6 @@ def remove_spikes_for_smoothing(smooth_window):
     plt.grid()
     plt.show()
 
-
 def show_timerange(startdate, enddate, raw_edac_file):
     startdate_string= str(startdate).replace(" ", "_")
     startdate_string= startdate_string.replace(":", "")
@@ -129,7 +135,7 @@ def show_timerange(startdate, enddate, raw_edac_file):
     enddate_string = enddate_string.replace(":", "")
     raw_edac =  read_patched_rawedac(raw_edac_file)
 
-    zeroset_edac = zero_set_correct(raw_edac_file)
+    zeroset_edac = read_zero_set_correct()
     rate_df = read_rate_df(5) ## assuming that create_rate_df(days_window) has been run already
     filtered_raw = raw_edac.copy()
     filtered_raw =  filtered_raw[(filtered_raw['date'] > startdate) & (filtered_raw['date'] < enddate)]
@@ -144,12 +150,6 @@ def show_timerange(startdate, enddate, raw_edac_file):
     filtered_rate.to_csv(path + 'events/EDACrate_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)  # Save selected EDAc rate to file
     edac_change.to_csv(path + 'events/EDACchange'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)
 
-    plt.figure()
-    plt.plot(rate_df['date'], rate_df['rate'])
-    plt.xlabel('Date')
-    plt.ylabel('EDAC daily rate')
-    plt.grid()
-    plt.show()
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,5))
     
     ax1.scatter(filtered_raw['date'],filtered_raw['edac'], label='Raw EDAC', s=3)
@@ -169,6 +169,15 @@ def show_timerange(startdate, enddate, raw_edac_file):
     plt.show()
 
 
+def plot_rates_all(rate_df):
+    plt.figure()
+    plt.plot(rate_df['date'], rate_df['rate'])
+    plt.xlabel('Date')
+    plt.ylabel('EDAC daily rate')
+    plt.grid()
+    plt.show()
+
+
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'patched_mex_edac.txt'
@@ -177,17 +186,19 @@ smooth_window = 11 # The time bin for calculating the rate for the curve that is
 
 
 
+def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only once
+    create_zero_set_correct(path+patched_edac_filename) # Create zeroset corrected EDAC file, needs to be done only once.
+    zerosetcorrected_df = read_zero_set_correct() # Read the zeroset corrected file
+    create_resample_corrected_edac(zerosetcorrected_df) # Resample to a daily frequency. Needs to be done only once.
+    create_rate_df(raw_window) # Creates daily rates based on resampled EDAC.
+    create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
 def main():
-    ####### part where you create the txt-files
-    ### resample_corrected_edac(path+raw_edac_filename) # For non-patched EDACs
-    resample_corrected_edac(path+patched_edac_filename) # This creates the resampled EDAC data file. Only needs to be done once for each file.
-    create_rate_df(raw_window) # Creates daily rates based on resampled EDAC. Needs to be only done once.
-    #create_rate_df(smooth_window) 
+
 
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
 
     #show_timerange(pd.to_datetime('2017-09-12 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
-    print("wi")
+    print("End.")
 if __name__ == "__main__":
     main()
