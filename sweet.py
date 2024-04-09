@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from scipy.signal import savgol_filter
 import scipy.optimize
+from lmfit.models import SkewedGaussianModel
 #from matplotlib.gridspec import GridSpec
 #from pandas.plotting import register_matplotlib_converters
 #from sqlalchemy import all_
@@ -17,7 +18,7 @@ import scipy.optimize
 #import scipy.stats
 #from matplotlib.backends.backend_pdf import PdfPages
 
-## Locked parameterse
+## Locked parameters
 #raw_window = 5 # The time bin for calculating the rate for the EDAC curve to be normalized
 #smooth_window = 11 # The time bin for calculating the rate for the curve that is to be smoothed
 #savgolwindow = 1095  # The size of the window of the Savitzky-Golay filter. 3 years
@@ -117,72 +118,13 @@ def create_rate_df(days_window):
     print('Time taken to create rate_df ', '{:.2f}'.format(time.time() - start_time) , "seconds")
 
 def read_rate_df(days_window):
-    start_time = time.time()
+    #start_time = time.time()
     df = pd.read_csv(path + str(days_window)+'_daily_rate.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     df.set_index('date') # set index to be the dates, instead of 0 1 2 ...
     df.drop(df.columns[df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True) # Removing the extra column with indices
-    print('Time taken to read daily rates to dataframe: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
+    #print('Time taken to read daily rates to dataframe: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
     df =df[(df['date'] < pd.to_datetime('2022-02-14 23:59:00'))] # valid timeframe
     return df 
-
-def remove_spikes_for_smoothing(smooth_window):
-    df = read_rate_df(smooth_window) # reads daily rates from a .txt file
-    plt.figure()
-    plt.plot(df['date'],df['rate'])
-    plt.xlabel('Date')
-    plt.ylabel('EDAC daily rate')
-    plt.grid()
-    plt.show()
-
-def show_timerange(startdate, enddate, raw_edac_file):
-    startdate_string= str(startdate).replace(" ", "_")
-    startdate_string= startdate_string.replace(":", "")
-    enddate_string= str(enddate).replace(" ", "_")
-    enddate_string = enddate_string.replace(":", "")
-    raw_edac =  read_patched_rawedac(raw_edac_file)
-
-    zeroset_edac = read_zero_set_correct()
-    rate_df = read_rate_df(5) ## assuming that create_rate_df(days_window) has been run already
-    filtered_raw = raw_edac.copy()
-    filtered_raw =  filtered_raw[(filtered_raw['date'] > startdate) & (filtered_raw['date'] < enddate)]
-    
-    filtered_zeroset = zeroset_edac.copy()
-    filtered_zeroset = filtered_zeroset[(filtered_zeroset['date'] > startdate) & (filtered_zeroset['date'] < enddate)]
-    filtered_rate =  rate_df[(rate_df['date'] > startdate) & (rate_df['date'] < enddate)]
-    edac_change = filtered_raw.drop_duplicates(subset='edac', keep='first', inplace=False) # Datetimes where the EDAC is increasing
-
-    filtered_raw.loc[:, 'time_difference'] = filtered_raw['date'].diff().fillna(pd.Timedelta(seconds=0))
-    filtered_raw.to_csv(path + 'events/rawEDAC_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False) # Save selected raw EDAC to file
-    filtered_rate.to_csv(path + 'events/EDACrate_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)  # Save selected EDAc rate to file
-    edac_change.to_csv(path + 'events/EDACchange'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)
-
-    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,5))
-    
-    ax1.scatter(filtered_raw['date'],filtered_raw['edac'], label='Raw EDAC', s=3)
-    #ax2.plot(filtered_zeroset['date'], filtered_zeroset['edac'], label ='Zeroset-corrected EDAC')
-    ax2.scatter(filtered_rate['date'], filtered_rate['rate'], label ='Daily rate with 5 day window')
-    #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
-    ax2.set_xlabel('Date', fontsize = 14)
-    ax1.set_ylabel('EDAC count', fontsize = 14)
-    ax2.set_ylabel('EDAC daily rate', fontsize = 14)
-    ax2.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
-    ax1.grid()
-    ax2.grid()
-    ax1.legend()
-    ax2.legend()
-    plt.tight_layout(pad=2.0)
-    plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
-    plt.show()
-
-
-def plot_rates_all(rate_df):
-    plt.figure()
-    plt.plot(rate_df['date'], rate_df['rate'])
-    plt.xlabel('Date')
-    plt.ylabel('EDAC daily rate')
-    plt.grid()
-    plt.show()
-
 
 def fit_sin(tt, yy): # Helping function for gcr_edac()
     '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
@@ -204,9 +146,7 @@ def fit_sin(tt, yy): # Helping function for gcr_edac()
     
 def gcr_edac():
     rate_df = read_rate_df(smooth_window)
-
     start_date = rate_df['date'].iloc[0]
-
     tt = np.array([(x - start_date).days for x in rate_df['date']])
     yy = rate_df['rate']
     res = fit_sin(tt, yy)
@@ -261,6 +201,10 @@ def create_normalized_rates(): # Return the normalized EDAC rate
     plt.show()
     normalized_df.to_csv(path + 'normalized_edac.txt', sep='\t', index=False) # Save to file
 
+def read_normalized_rates():
+    df = pd.read_csv(path + 'normalized_edac.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    return df
+### -------------------------------------------
 def print_missing_dates(date_column):
     ## example of datetime_column: df['datetime].dt.date  # remove the time from datetime object
     start_date = date_column.iloc[0]
@@ -270,6 +214,80 @@ def print_missing_dates(date_column):
     print("Start date is ", start_date, ". End date is ", end_date)
     print("Missing dates: ", missing_dates)
 
+def show_timerange(startdate, enddate, raw_edac_file):
+    startdate_string= str(startdate).replace(" ", "_")
+    startdate_string= startdate_string.replace(":", "")
+    enddate_string= str(enddate).replace(" ", "_")
+    enddate_string = enddate_string.replace(":", "")
+    raw_edac =  read_patched_rawedac(raw_edac_file)
+
+    zeroset_edac = read_zero_set_correct()
+    rate_df = read_rate_df(5) ## assuming that create_rate_df(days_window) has been run already
+    filtered_raw = raw_edac.copy()
+    filtered_raw =  filtered_raw[(filtered_raw['date'] > startdate) & (filtered_raw['date'] < enddate)]
+    
+    filtered_zeroset = zeroset_edac.copy()
+    filtered_zeroset = filtered_zeroset[(filtered_zeroset['date'] > startdate) & (filtered_zeroset['date'] < enddate)]
+    filtered_rate =  rate_df[(rate_df['date'] > startdate) & (rate_df['date'] < enddate)]
+    edac_change = filtered_raw.drop_duplicates(subset='edac', keep='first', inplace=False) # Datetimes where the EDAC is increasing
+
+    filtered_raw.loc[:, 'time_difference'] = filtered_raw['date'].diff().fillna(pd.Timedelta(seconds=0))
+    filtered_raw.to_csv(path + 'events/rawEDAC_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False) # Save selected raw EDAC to file
+    filtered_rate.to_csv(path + 'events/EDACrate_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)  # Save selected EDAc rate to file
+    edac_change.to_csv(path + 'events/EDACchange'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)
+
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,5))
+    
+    ax1.scatter(filtered_raw['date'],filtered_raw['edac'], label='Raw EDAC', s=3)
+    #ax2.plot(filtered_zeroset['date'], filtered_zeroset['edac'], label ='Zeroset-corrected EDAC')
+    ax2.scatter(filtered_rate['date'], filtered_rate['rate'], label ='Daily rate with 5 day window')
+    #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+    ax2.set_xlabel('Date', fontsize = 14)
+    ax1.set_ylabel('EDAC count', fontsize = 14)
+    ax2.set_ylabel('EDAC daily rate', fontsize = 14)
+    ax2.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+    ax1.grid()
+    ax2.grid()
+    ax1.legend()
+    ax2.legend()
+    plt.tight_layout(pad=2.0)
+    plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
+    plt.show()
+
+def plot_rates_all(rate_df):
+    plt.figure()
+    plt.plot(rate_df['date'], rate_df['rate'])
+    plt.xlabel('Date')
+    plt.ylabel('EDAC daily rate')
+    plt.grid()
+    plt.show()
+
+def plot_rate_distribution():
+    df = read_normalized_rates()
+    binsize = 0.2
+    max_rate = np.max(df['normalized_rate'])
+    min_rate = np.min(df['normalized_rate'])
+    bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
+    counts, bin_edges = np.histogram(df['normalized_rate'], bins=bins, density=False)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+    model = SkewedGaussianModel()   # Create a SkewedGaussianModel
+    params = model.guess(counts, x=bin_centers) # Guess initial parameters
+    result = model.fit(counts, params, x=bin_centers) # Fit the model to the data
+
+    print(result.fit_report())
+    fitted_params = result.params.valuesdict()
+    
+    # Plot the data and the fitted model
+    plt.figure()
+    #plt.plot(bin_centers, counts, label='Data')
+    plt.hist(df['normalized_rate'],bins=bins, density=False, ec='black')
+    plt.plot(bin_centers, result.best_fit, label='Fitted model')
+    plt.legend()
+    plt.xlabel('Normalized EDAC daily rate')
+    plt.ylabel('Occurrences')
+    plt.title('Fitting with Skewed Gaussian Model')
+    plt.show()
 
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
@@ -288,13 +306,16 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     
 def main():
 
-    process_new_raw_edac()
+    #process_new_raw_edac()
     #print_missing_dates(zerosetcorrected_df['datetime'].dt.date)
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
 
     #show_timerange(pd.to_datetime('2017-09-12 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
     #create_normalized_rates()
+    #read_normalized_rates()
+
+    plot_rate_distribution()
     print("End")
 if __name__ == "__main__":
     main()
