@@ -213,6 +213,7 @@ def print_missing_dates(date_column):
     missing_dates = date_range[~date_range.isin(date_column)]
     print("Start date is ", start_date, ". End date is ", end_date)
     print("Missing dates: ", missing_dates)
+    print(len(missing_dates))
 
 def show_timerange(startdate, enddate, raw_edac_file):
     startdate_string= str(startdate).replace(" ", "_")
@@ -224,21 +225,21 @@ def show_timerange(startdate, enddate, raw_edac_file):
     zeroset_edac = read_zero_set_correct()
     rate_df = read_rate_df(5) ## assuming that create_rate_df(days_window) has been run already
     filtered_raw = raw_edac.copy()
-    filtered_raw =  filtered_raw[(filtered_raw['date'] > startdate) & (filtered_raw['date'] < enddate)]
+    filtered_raw =  filtered_raw[(filtered_raw['datetime'] > startdate) & (filtered_raw['datetime'] < enddate)]
     
     filtered_zeroset = zeroset_edac.copy()
-    filtered_zeroset = filtered_zeroset[(filtered_zeroset['date'] > startdate) & (filtered_zeroset['date'] < enddate)]
+    filtered_zeroset = filtered_zeroset[(filtered_zeroset['datetime'] > startdate) & (filtered_zeroset['datetime'] < enddate)]
     filtered_rate =  rate_df[(rate_df['date'] > startdate) & (rate_df['date'] < enddate)]
     edac_change = filtered_raw.drop_duplicates(subset='edac', keep='first', inplace=False) # Datetimes where the EDAC is increasing
 
-    filtered_raw.loc[:, 'time_difference'] = filtered_raw['date'].diff().fillna(pd.Timedelta(seconds=0))
+    filtered_raw.loc[:, 'time_difference'] = filtered_raw['datetime'].diff().fillna(pd.Timedelta(seconds=0))
     filtered_raw.to_csv(path + 'events/rawEDAC_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False) # Save selected raw EDAC to file
     filtered_rate.to_csv(path + 'events/EDACrate_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)  # Save selected EDAc rate to file
     edac_change.to_csv(path + 'events/EDACchange'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)
 
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,5))
     
-    ax1.scatter(filtered_raw['date'],filtered_raw['edac'], label='Raw EDAC', s=3)
+    ax1.scatter(filtered_raw['datetime'],filtered_raw['edac'], label='Raw EDAC', s=3)
     #ax2.plot(filtered_zeroset['date'], filtered_zeroset['edac'], label ='Zeroset-corrected EDAC')
     ax2.scatter(filtered_rate['date'], filtered_rate['rate'], label ='Daily rate with 5 day window')
     #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
@@ -261,6 +262,37 @@ def plot_rates_all(rate_df):
     plt.ylabel('EDAC daily rate')
     plt.grid()
     plt.show()
+
+import seaborn as sns
+from scipy.stats import poisson
+from scipy.optimize import curve_fit
+
+
+
+
+def poisson():
+    df = read_normalized_rates()
+    binsize = 1
+    max_rate = np.max(df['normalized_rate'])
+    min_rate = np.min(df['normalized_rate'])
+    bins = np.arange(min_rate,max_rate,binsize)
+    #o = sns.histplot(data=df["normalized_rate"], kde=True,bins = bins)
+    
+    data = df['normalized_rate']
+    mu = np.mean(data)
+
+    x_plot = np.arange(0, max(data) + 1)
+    #plt.figure()
+    #plt.plot(x_plot, poisson.pmf(x_plot, mu), label='Poisson')
+    #plt.show()
+    plt.figure()
+    plt.hist(data, bins=bins, color="red", alpha=0.5, density=False, label='Histogram')
+    #poisson = np.random.poisson(lam=mu, size=100000)
+    #plt.hist(poisson, bins=bins, color="blue", alpha=0.5, density=True, label='Poisson Distribution')
+    plt.show()
+    #hist, bin_edges = np.histogram(df['normalized_rate'], bins='auto', density=True)
+
+
 
 def plot_rate_distribution():
     df = read_normalized_rates()
@@ -305,17 +337,18 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
     
 def main():
-
+    #zerosetcorrected_df = read_zero_set_correct()
     #process_new_raw_edac()
     #print_missing_dates(zerosetcorrected_df['datetime'].dt.date)
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
 
-    #show_timerange(pd.to_datetime('2017-09-12 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
+    show_timerange(pd.to_datetime('2017-09-09 23:59:00'), pd.to_datetime('2017-09-23 00:00:00'), path+patched_edac_filename)
     #create_normalized_rates()
     #read_normalized_rates()
 
-    plot_rate_distribution()
+    ##plot_rate_distribution()
+    ##poisson()
     print("End")
 if __name__ == "__main__":
     main()
