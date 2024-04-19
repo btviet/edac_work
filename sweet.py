@@ -78,6 +78,7 @@ def create_resampled_corrected_edac(zerosetcorrected_df): # Resamples the zero s
     df_resampled =  zerosetcorrected_df.resample('D').last().ffill()
     df_resampled.reset_index(inplace=True)
     df_resampled.rename(columns={'datetime': 'date'}, inplace=True)
+    df_resampled['date'] = df_resampled['date'] + pd.Timedelta(hours=12) # Set the value to be at noon
     ### filename = 'resampled_corrected_edac.txt' ### For not-patched EDACs
     filename = 'resampled_corrected_patched_edac.txt'
     df_resampled.to_csv(path + filename, sep='\t', index=False) # Save to file
@@ -97,7 +98,7 @@ def create_rate_df(days_window):
     start_time = time.time()
     print("--------- Calculating the daily rates ---------" )
     df = read_resampled_df() # Fetch resampled EDAC data
-    startdate = df['date'][df.index[days_window//2]].date() # The starting date in the data, includes the time
+    startdate = df['date'][df.index[days_window//2]].date() # The starting date in the data
     lastdate = df['date'][df.index[-days_window//2]].date() # The last date and time in the dataset
     print("The starting date is ", startdate, "\nThe last date is ", lastdate)
 
@@ -292,15 +293,13 @@ def poisson():
     plt.show()
     #hist, bin_edges = np.histogram(df['normalized_rate'], bins='auto', density=True)
 
-
-
-def plot_rate_distribution():
+def skewed_gaussian_model():
     df = read_normalized_rates()
-    binsize = 0.2
+    binsize = 0.1
     max_rate = np.max(df['normalized_rate'])
     min_rate = np.min(df['normalized_rate'])
     bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
-    counts, bin_edges = np.histogram(df['normalized_rate'], bins=bins, density=False)
+    counts, bin_edges = np.histogram(df['normalized_rate'], bins=bins, density=True)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
     model = SkewedGaussianModel()   # Create a SkewedGaussianModel
@@ -309,18 +308,45 @@ def plot_rate_distribution():
 
     print(result.fit_report())
     fitted_params = result.params.valuesdict()
-    
+    print(fitted_params['center'])
+    center = fitted_params['center']
+    sigma = fitted_params['sigma']
     # Plot the data and the fitted model
     plt.figure()
     #plt.plot(bin_centers, counts, label='Data')
-    plt.hist(df['normalized_rate'],bins=bins, density=False, ec='black')
+    plt.hist(df['normalized_rate'],bins=bins, density=True, ec='black', label='Distribution of normalized EDAC daily rates')
     plt.plot(bin_centers, result.best_fit, label='Fitted model')
+    plt.axvline(x = center, color = 'red', label = 'center')
     plt.legend()
     plt.xlabel('Normalized EDAC daily rate')
     plt.ylabel('Occurrences')
     plt.title('Fitting with Skewed Gaussian Model')
     plt.show()
 
+from scipy import stats
+def fit_skewnorm():
+    df = read_normalized_rates()
+    binsize = 0.1
+    max_rate = np.max(df['normalized_rate'])
+    min_rate = np.min(df['normalized_rate'])
+    bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
+    counts, bin_edges = np.histogram(df['normalized_rate'], bins=bins, density=False)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2 
+    print(counts, bin_centers)
+    print(sum(counts*bin_centers)/sum(counts))
+    #a, loc, scale = 5.3, -0.1, 2.2
+    #data = stats.skewnorm(a, loc, scale).rvs(1000)
+    data = df['normalized_rate']
+    ae, loce, scalee = stats.skewnorm.fit(data)
+    print(stats.skewnorm.fit(data))
+    plt.figure()
+    plt.hist(data, bins=bins,density = True, alpha=0.6, ec='black')
+    xmin, xmax = plt.xlim()
+    x = np.linspace(xmin, xmax, 100)
+    p = stats.skewnorm.pdf(x,ae, loce, scalee)#.rvs(100)
+    plt.axvline(x=loce, label='Mean')
+    plt.plot(x, p, 'k', linewidth=2)
+    plt.show()
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'patched_mex_edac.txt'
@@ -330,7 +356,7 @@ smooth_window = 11 # The time bin for calculating the rate for the curve that is
 
 
 def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only once
-    create_zero_set_correct(path+patched_edac_filename) # Create zeroset corrected EDAC file, needs to be done only once.
+    #create_zero_set_correct(path+patched_edac_filename) # Create zeroset corrected EDAC file, needs to be done only once.
     zerosetcorrected_df = read_zero_set_correct() # Read the zeroset corrected file
     create_resampled_corrected_edac(zerosetcorrected_df) # Resample to a daily frequency. Needs to be done only once.
     create_rate_df(raw_window) # Creates daily rates based on resampled EDAC.
@@ -338,16 +364,17 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     
 def main():
     #zerosetcorrected_df = read_zero_set_correct()
-    #process_new_raw_edac()
+    process_new_raw_edac()
     #print_missing_dates(zerosetcorrected_df['datetime'].dt.date)
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
 
-    show_timerange(pd.to_datetime('2017-09-09 23:59:00'), pd.to_datetime('2017-09-23 00:00:00'), path+patched_edac_filename)
+    show_timerange(pd.to_datetime('2017-09-09 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
     #create_normalized_rates()
     #read_normalized_rates()
 
-    ##plot_rate_distribution()
+    #skewed_gaussian_model()
+    #fit_skewnorm()
     ##poisson()
     print("End")
 if __name__ == "__main__":
