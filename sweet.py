@@ -72,6 +72,7 @@ def read_zero_set_correct():
     return df
 
 def create_resampled_corrected_edac(zerosetcorrected_df): # Resamples the zero set corrected EDAC counter to have one reading each day, and save the resulting dataframe to a textfile
+    # Does not include the daily rate in this step
     start_time = time.time()
     print('--------- Starting the resampling to a daily frequency process ------')
     zerosetcorrected_df = zerosetcorrected_df.set_index('datetime') 
@@ -87,6 +88,8 @@ def create_resampled_corrected_edac(zerosetcorrected_df): # Resamples the zero s
 
 
 def resample_and_rate(zerosetcorrected_df): # daily rate is the difference between the last and first reading
+
+    # equivalent to create_resampled_corrected_edac, but also calculates daily rate
     start_time = time.time()
     print('--------- Starting the resampling to a daily frequency process ------')
     #df=  df[df['datetime'] > pd.to_datetime('2024-03-16 00:00:00')]
@@ -112,16 +115,17 @@ def read_resampled_df(): # Retrieves the resampled and zerozset corrected edac
     path='files/'
     ### df = pd.read_csv(path +'resampled_corrected_edac.txt',skiprows=0, sep="\t",parse_dates = ['date']) ## For non-patched EDACs
     ###df = pd.read_csv(path +'resampled_corrected_patched_edac.txt',skiprows=0, sep="\t",parse_dates = ['date'])
-    df = pd.read_csv(path +'resampled_rate_patched_edac.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+
+    df = pd.read_csv(path +'resampled_rate_patched_edac.txt',skiprows=0, sep="\t",parse_dates = ['date']) # read output from resample_and_rate
     df.set_index('date') # set index to be the dates, instead of 0 1 2 ...
     df.drop(df.columns[df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True) # Removing the extra column with indices
     #print('Time taken to read resampled EDAC to dataframe: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
     return df 
 
-def create_rate_df(days_window):
+def create_rate_df(days_window): # rolling window method
     start_time = time.time()
     print("--------- Calculating the daily rates ---------" )
-    df = read_resampled_df() # Fetch resampled EDAC data
+    df = read_resampled_df() # Fetch resampled EDAC data, read output from create_resampled_corrected_edac()
     startdate = df['date'][df.index[days_window//2]].date() # The starting date in the data
     lastdate = df['date'][df.index[-days_window//2]].date() # The last date and time in the dataset
     print("The starting date is ", startdate, "\nThe last date is ", lastdate)
@@ -179,8 +183,31 @@ def gcr_edac():
     res = fit_sin(tt, yy)
     x_datetime = np.array([start_date + pd.Timedelta(days=x) for x in tt])
     df = pd.DataFrame({'date':x_datetime,'rate':  res["fitfunc"](tt)})
-
     return df
+
+def gcr_edac_v2(): # trying to remove 0s when fitting the sine curve
+
+    rate_df = read_resampled_df()
+    start_date = rate_df['date'].iloc[0]
+    last_date = rate_df['date'].iloc[-1]
+    rate_df = rate_df[rate_df['daily_rate'] > 0] # Remove the rows with rate equal to 0
+    tt = np.array([(x - start_date).days for x in rate_df['date']])
+    yy = rate_df['daily_rate']
+    res = fit_sin(tt, yy)
+    fitfunc = res["fitfunc"]
+    x_datetime = np.array([start_date + pd.Timedelta(days=x) for x in tt])
+    date_range = pd.date_range(start=start_date, end=last_date)
+    fit_values = fitfunc(np.arange(len(date_range)))
+    df = pd.DataFrame({'date': date_range, 'daily_rate': fit_values})
+    df_low = pd.DataFrame({'date':x_datetime,'daily_rate':  res["fitfunc"](tt)})
+    plt.figure()
+    plt.plot(rate_df['date'],rate_df['daily_rate'])
+    plt.plot(df_low['date'], df_low['daily_rate'], label='sine fit with all data')
+    plt.plot(df['date'], df['daily_rate'], label='sine fit when excluding 0s')
+    plt.legend()
+    plt.show()
+    return df
+
 
 
 def gcr_edac_v2(): # trying to remove 0s when fitting the sine curve
@@ -256,6 +283,7 @@ def create_normalized_rates_v2():
     #plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
     plt.show()
     normalized_df.to_csv(path + 'normalized_edac.txt', sep='\t', index=False) # Save to file
+
 def create_normalized_rates(): # Return the normalized EDAC rate
     gcr_component = gcr_edac()
     first_gcr = gcr_component['date'].iloc[0]
@@ -371,6 +399,7 @@ from scipy.stats import poisson
 
 def skewed_gaussian_model():
     df = read_normalized_rates()
+    print(df)
     binsize = 0.1
     max_rate = np.max(df['normalized_rate'])
     min_rate = np.min(df['normalized_rate'])
@@ -446,8 +475,10 @@ def main():
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
     #process_new_raw_edac()
-    #show_timerange(pd.to_datetime('2017-09-09 23:59:00'), pd.to_datetime('2017-09-14 00:00:00'), path+patched_edac_filename)
-    create_normalized_rates_v2()
+    show_timerange(pd.to_datetime('2017-09-01 23:59:00'), pd.to_datetime('2017-09-20 00:00:00'), path+patched_edac_filename)
+    #create_normalized_rates_v2()
+
+
 
     #create_normalized_rates()
     #read_normalized_rates()
