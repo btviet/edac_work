@@ -460,13 +460,16 @@ from scipy.stats import poisson
 
 def skewed_gaussian_model():
     df = read_normalized_rates()
-    print(df)
     binsize = 0.1
     max_rate = np.max(df['normalized_rate'])
     min_rate = np.min(df['normalized_rate'])
     bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
-    counts, bin_edges = np.histogram(df['normalized_rate'], bins=bins, density=True)
+    counts, bin_edges = np.histogram(df['normalized_rate'], bins=bins, density=False)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    test_df = pd.DataFrame({'bin_center': bin_centers, 'count': counts})
+ 
+    #test_df.to_csv(path + 'temp_test.txt', sep='\t', index=False) # Save to file
+
 
     model = SkewedGaussianModel()   # Create a SkewedGaussianModel
     params = model.guess(counts, x=bin_centers) # Guess initial parameters
@@ -474,20 +477,24 @@ def skewed_gaussian_model():
 
     print(result.fit_report())
     fitted_params = result.params.valuesdict()
-    print(fitted_params['center'])
+    df_test = pd.DataFrame({'bin_center' : bin_centers, 'model fit':  result.best_fit})
     center = fitted_params['center']
     sigma = fitted_params['sigma']
+    df_test.to_csv(path + 'gaussian_test_new.txt', sep='\t', index=False) # Save to file
     # Plot the data and the fitted model
     plt.figure()
     #plt.plot(bin_centers, counts, label='Data')
-    plt.hist(df['normalized_rate'],bins=bins, density=True, ec='black', label='Distribution of normalized EDAC daily rates')
-    plt.plot(bin_centers, result.best_fit, label='Fitted model')
-    plt.axvline(x = center, color = 'red', label = 'center')
+    counts, bin_edges, _= plt.hist(df['normalized_rate'],bins=bins, density=False, ec='black', label='Distribution of normalized EDAC daily rates')
+    plt.scatter(bin_centers, result.best_fit, label='Fitted model', color='#ff7f00')
+    plt.axvline(x = center, color = 'red', label = 'center: ' +str(center))
+    plt.axvline(x=0.88, color='#4daf4a', label="calculated mean of the histogram,  0.8802")
+    plt.axvline(x=0.8725, color='#f781bf', label="calculated mean of the fitted model, 0.8725")
     plt.legend()
     plt.xlabel('Normalized EDAC daily rate')
     plt.ylabel('Occurrences')
     plt.title('Fitting with Skewed Gaussian Model')
     plt.show()
+
 
 from scipy import stats
 def fit_skewnorm():
@@ -528,8 +535,10 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     #create_rate_df(raw_window) # Creates daily rates based on resampled EDAC.
     #create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
     print('End')
+    
 def main():
-    zerosetcorrected_df = read_zero_set_correct()
+    #zerosetcorrected_df = read_zero_set_correct()
+    skewed_gaussian_model()
     #fit_distribution_to_sine_rates()
     #create_normalized_rates_v2()
     #process_new_raw_edac()
