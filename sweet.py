@@ -103,7 +103,7 @@ def resample_and_rate(zerosetcorrected_df): # daily rate is the difference betwe
     df_resampled['edac_last'] = last_df['edac']
     df_resampled.rename(columns={'datetime': 'date', 'edac':'edac_first'}, inplace=True)
     df_resampled['daily_rate'] = df_resampled['edac_last']-df_resampled['edac_first']
-    df_resampled['date'] = df_resampled['date']+pd.Timedelta(hours=12)
+    df_resampled['date'] = df_resampled['date']+pd.Timedelta(hours=12) # set datetime of each date to noon
     filename = 'resampled_rate_patched_edac.txt'
     df_resampled.to_csv(path + filename, sep='\t', index=False) # Save to file
     print('File ', filename, ' created')
@@ -172,7 +172,7 @@ def fit_sin(tt, yy): # Helping function for gcr_edac()
     A, w, p, c = popt
     f = w/(2.*np.pi)
     fitfunc = lambda t: A * np.sin(w*t + p) + c
-    print(A, w, p, c, f)
+    #print(A, w, p, c, f)
     return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)}
     
 def gcr_edac():
@@ -185,7 +185,7 @@ def gcr_edac():
     df = pd.DataFrame({'date':x_datetime,'rate':  res["fitfunc"](tt)})
     return df
 
-def gcr_edac_v2(): # trying to remove 0s when fitting the sine curve
+def gcr_edac_v2(): # nonroll daily rate
 
     rate_df = read_resampled_df()
     start_date = rate_df['date'].iloc[0]
@@ -197,44 +197,105 @@ def gcr_edac_v2(): # trying to remove 0s when fitting the sine curve
     fitfunc = res["fitfunc"]
     x_datetime = np.array([start_date + pd.Timedelta(days=x) for x in tt])
     date_range = pd.date_range(start=start_date, end=last_date)
-    fit_values = fitfunc(np.arange(len(date_range)))
-    df = pd.DataFrame({'date': date_range, 'daily_rate': fit_values})
-    df_low = pd.DataFrame({'date':x_datetime,'daily_rate':  res["fitfunc"](tt)})
+    #fit_values = fitfunc(np.arange(len(date_range)))
+    #df = pd.DataFrame({'date': date_range, 'daily_rate': fit_values})
+ 
+    rate_df['sine_fit'] = res["fitfunc"](tt)
+
+    df_low = pd.DataFrame({'date':x_datetime,'rate_gcr':  res["fitfunc"](tt)}) #sine fit with all data
     plt.figure()
-    plt.plot(rate_df['date'],rate_df['daily_rate'])
-    plt.plot(df_low['date'], df_low['daily_rate'], label='sine fit with all data')
-    plt.plot(df['date'], df['daily_rate'], label='sine fit when excluding 0s')
+    plt.plot(rate_df['date'],rate_df['daily_rate'], label='EDAC count rate')
+    #plt.plot(df_low['date'], df_low['daily_rate'], label='sine fit with all data')
+    plt.plot(rate_df['date'], rate_df['sine_fit'], label='Sine fit when excluding 0s')
     plt.legend()
+    plt.ylim([0, 18])
+    plt.grid()
     plt.show()
-    return df
+    #return df_low
+    return rate_df
 
 
-
-def gcr_edac_v2(): # trying to remove 0s when fitting the sine curve
-
+def savitzky_fit():
     rate_df = read_resampled_df()
-    start_date = rate_df['date'].iloc[0]
-    last_date = rate_df['date'].iloc[-1]
-    rate_df = rate_df[rate_df['daily_rate'] > 0] # Remove the rows with rate equal to 0
-    tt = np.array([(x - start_date).days for x in rate_df['date']])
-    yy = rate_df['daily_rate']
-    res = fit_sin(tt, yy)
-    fitfunc = res["fitfunc"]
-    x_datetime = np.array([start_date + pd.Timedelta(days=x) for x in tt])
-    date_range = pd.date_range(start=start_date, end=last_date)
-    fit_values = fitfunc(np.arange(len(date_range)))
-    df = pd.DataFrame({'date': date_range, 'daily_rate': fit_values})
-    df_low = pd.DataFrame({'date':x_datetime,'daily_rate':  res["fitfunc"](tt)})
-    plt.figure()
-    plt.plot(rate_df['date'],rate_df['daily_rate'])
-    plt.plot(df_low['date'], df_low['daily_rate'], label='sine fit with all data')
-    plt.plot(df['date'], df['daily_rate'], label='sine fit when excluding 0s')
-    plt.legend()
+    rate_df = rate_df[rate_df['daily_rate'] > 0] 
+    savgolwindow=700
+    polyorder=2
+    y_filtered = savgol_filter(rate_df['daily_rate'], savgolwindow, polyorder) # Apply filtering to the EDAC rates with large spikes removed
+    rate_df['normalized']=rate_df['daily_rate']/y_filtered
+    print(rate_df)
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6))
+
+    ax1.plot(rate_df['date'],rate_df['daily_rate'],label='EDAC count rate')
+    ax1.plot(rate_df['date'],y_filtered,label='Savitzky-Golay fit')
+    ax2.set_xlabel('Date')
+    ax1.set_ylabel('EDAC count rate')
+    ax2.set_ylabel('EDAC normalized rate')
+    ax2.plot(rate_df['date'],rate_df['normalized'],label='Normalized')
+    ax1.grid()
+    ax2.grid()
     plt.show()
-    return df
+
+    binsize = 0.5
+    max = np.max(rate_df['normalized'])
+    min = np.min(rate_df['normalized'])
+    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
+    plt.figure(figsize=(8,6))
+    result =plt.hist(rate_df['normalized'],bins = bins, density = False, color='#FF6B6B',ec='black')
+    plt.xlabel('EDAC normalized rate')
+    plt.ylabel('Occurrences')
+    plt.show()
 
 
-def create_normalized_rates_v2():
+
+def fit_distribution_to_sine_rates():
+
+    timewindow_start = pd.to_datetime("2017-09-01")
+    timewindow_end = pd.to_datetime("2017-09-17")
+    rate_df = gcr_edac_v2()
+
+    rate_df['subtract'] = rate_df['daily_rate']-rate_df['sine_fit']
+    rate_df['divide'] = rate_df['daily_rate']/rate_df['sine_fit']
+    #rate_df =  rate_df[(rate_df['date'] > timewindow_start) & (rate_df['date'] < timewindow_end)]
+    print(rate_df)
+    df_sun = pd.read_csv('files/SunSpots_2000-2020.txt',names=["date", "count"], skiprows=0, sep="\t", parse_dates = ['date'])
+    #df_sun =  df_sun[(df_sun['date'] > timewindow_start) & (df_sun['date'] < timewindow_end)]
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6))
+    ax1.plot(rate_df['date'],rate_df['daily_rate'], label='EDAC count rate')
+    ax1.plot(rate_df['date'],rate_df['sine_fit'],label='sine fit')
+    #ax1.plot(rate_df['date'],rate_df['subtract'],label='subtract')
+    #ax1.plot(rate_df['date'],rate_df['divide'],label='divide')
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+
+    # Indices where the date is the same as the beginning window date
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['count'], savgolwindow_sunspots, 3)
+    ax2.set(xlabel="Date", ylabel = "Number of sunspots", title = "Solar Cycle")
+    ax1.set(ylabel= "EDAC count rate [#/day]")
+    ax2.plot(df_sun['date'],df_sun['count'], label="Number of sunspots")
+    ax2.plot(df_sun["date"], sunspots_smoothed,linewidth=1,label='Smoothed sunspots, savgolwindow = ' + str(savgolwindow_sunspots))
+    ax1.grid()
+    ax2.grid()
+    ax1.legend()
+    ax2.legend()
+    plt.show()
+
+
+    binsize = 0.03
+    data = rate_df['sine_fit']
+    max = np.max(data)
+    min = np.min(data)
+    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
+    plt.figure(figsize=(8,6))
+    result =plt.hist(data,bins = bins, density = False, color='#FF6B6B',ec='black')
+    for i in range(len(result[0])):
+        plt.text(bins[i], result[0][i], str(int(result[0][i])), ha='left', va='bottom')
+    plt.xlabel("EDAC count rate")
+    plt.ylabel("Occurrences")
+    plt.show()
+
+def create_normalized_rates_v2(): #nonroll daily rate
 
     gcr_component = gcr_edac_v2()
     first_gcr = gcr_component['date'].iloc[0]
@@ -459,7 +520,6 @@ raw_window = 5 # The time bin for calculating the rate for the EDAC curve to be 
 smooth_window = 11 # The time bin for calculating the rate for the curve that is to be smoothed
 
 
-
 def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only once
     #create_zero_set_correct(path+patched_edac_filename) # Create zeroset corrected EDAC file, needs to be done only once.
     #zerosetcorrected_df = read_zero_set_correct() # Read the zeroset corrected file
@@ -469,13 +529,15 @@ def process_new_raw_edac(): # Creates .txt files based on the raw EDAC. Do only 
     #create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
     print('End')
 def main():
-    #zerosetcorrected_df = read_zero_set_correct()
+    zerosetcorrected_df = read_zero_set_correct()
+    #fit_distribution_to_sine_rates()
+    #create_normalized_rates_v2()
     #process_new_raw_edac()
     #print_missing_dates(zerosetcorrected_df['datetime'].dt.date)
     ####### part where you do stuff
     #remove_spikes_for_smoothing(smooth_window)
     #process_new_raw_edac()
-    show_timerange(pd.to_datetime('2017-09-01 23:59:00'), pd.to_datetime('2017-09-20 00:00:00'), path+patched_edac_filename)
+    #show_timerange(pd.to_datetime('2017-09-01 23:59:00'), pd.to_datetime('2017-09-20 00:00:00'), path+patched_edac_filename)
     #create_normalized_rates_v2()
 
 
@@ -487,5 +549,6 @@ def main():
     #fit_skewnorm()
     ##poisson()
     print("End")
+
 if __name__ == "__main__":
     main()
