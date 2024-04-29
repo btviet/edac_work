@@ -384,14 +384,16 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
 
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
     
-    ax1.plot(normalized_df['date'], normalized_df['daily_rate'])
-    ax1.plot(normalized_df['date'],normalized_df['gcr_component'])
-    ax2.plot(normalized_df['date'],normalized_df['normalized_rate'])
+    ax1.plot(normalized_df['date'], normalized_df['daily_rate'], label='Count rate')
+    ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='Sine fit')
+    ax2.plot(normalized_df['date'],normalized_df['normalized_rate'], label='Normalized count rate')
     ax2.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('EDAC count rate [#/day]', fontsize = 10)
     ax2.set_ylabel('Normalized EDAC count rate [#/day]', fontsize = 10)
     ax1.grid()
     ax2.grid()
+    ax1.legend()
+    ax2.legend()
     plt.show()
 
 def skewed_gaussian_model(method):
@@ -448,8 +450,10 @@ def plot_histogram_rates(method):
     bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
     counts, bin_edges = np.histogram(data, bins=bins, density=False)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2 
+    print(bin_edges)
     plt.figure()
     plt.hist(data, bins=bin_edges, edgecolor='black')
+    plt.title('Normalized count rate')
     plt.show()
 
 def fit_skewnorm(method):
@@ -476,6 +480,84 @@ def fit_skewnorm(method):
     plt.plot(x, p, 'k', linewidth=2)
     plt.show()
 
+
+def group_by_6_months(date):
+    return pd.Timestamp(date.year, ((date.month-1)//6)*6 + 1, 1)
+
+def eyeball():
+    method = 'nonroll'
+    df = read_normalized_rates(method)
+    threshold = 3.4
+    thresholdcolor = '#e41a1c'
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
+    
+    ax1.plot(df['date'], df['daily_rate'], label='EDAC count rate')
+    ax1.plot(df['date'],df['gcr_component'], label='GCR component')
+    ax2.plot(df['date'], df['normalized_rate'], 
+             color='#377eb8',
+             label='Normalized count rate')
+    ax2.axhline(threshold, color= thresholdcolor, label='Threshold: ' + str(threshold))
+    ax2.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('EDAC count rate [#/day]', fontsize = 10)
+    ax2.set_ylabel('Normalized EDAC count rate [#/day]', fontsize = 10)
+    ax1.grid()
+    ax2.grid()
+    ax1.legend()
+    ax2.legend()
+    #plt.show()
+
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    df_sun = process_sidc_ssn()
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
+
+    spike_df = df.copy()
+    spike_df = spike_df[spike_df['normalized_rate'] >= threshold]
+
+    spike_df.reset_index(inplace=True)
+    
+    
+    spike_df['6_month_group'] = spike_df['date'].apply(group_by_6_months)
+    grouped_df = spike_df.groupby('6_month_group').size().reset_index()
+    grouped_df.columns=['datebin','counts']
+    spike_df.to_csv(path + 'datesabovethreshold.txt', sep='\t', index=False) # Save to file   
+    print(spike_df)
+    print(grouped_df)
+    fig, ax1 = plt.subplots(figsize=(10,6))
+    spikecolor = '#377eb8'
+    suncolor = '#4daf4a'
+    ax1.plot(grouped_df['datebin'],grouped_df['counts'],
+             marker='o',color=spikecolor,
+             label='Number of days above threshold')
+    ax2=ax1.twinx()
+    #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,color=suncolor,
+             label='Smoothed sunspots')
+    sun_limit = max(sunspots_smoothed)+10
+    ax2.set_ylim([0, max(sunspots_smoothed+10)])
+    ax2.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Number of stormy days', fontsize = 10)
+    ax1.tick_params(axis="y", labelcolor=spikecolor)
+    ax2.tick_params(axis="y", labelcolor=suncolor)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.title('Sunspot number and number of stormy days in 6 month bins')
+    plt.show()
+
+
+def process_sidc_ssn(): # returns sunspot dataframe
+    column_names = ['year', 'month', 'day', 'date_fraction','daily_sunspotnumber','std','observations','status']
+    df_sun = pd.read_csv(path+'SN_d_tot_V2.0.csv',names = column_names, sep=';')
+    df_sun = df_sun[df_sun['daily_sunspotnumber']>=0]
+
+    df_sun['date'] = pd.to_datetime(df_sun[['year', 'month', 'day']]) 
+    df_sun = df_sun[['date', 'daily_sunspotnumber']]
+    return df_sun
+
+
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'raw_edac/patched_mex_edac.txt'
@@ -500,6 +582,7 @@ def main():
     #plot_rates_all(method)
     #plot_histogram_rates(method)
     #skewed_gaussian_model(method)
+    eyeball()
     print("End")
 
 if __name__ == "__main__":
