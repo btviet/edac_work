@@ -106,7 +106,7 @@ def read_rate_df(days_window): # rolling window method
     #df =df[(df['date'] < pd.to_datetime('2022-02-14 23:59:00'))] # valid timeframe
     return df 
 
-def gcr_edac(method): # nonroll daily rate
+def fit_sine_gcr(method): # nonroll daily rate
     if method == 'roll':
         rate_df = read_rate_df(smooth_window)
     else:
@@ -123,7 +123,7 @@ def gcr_edac(method): # nonroll daily rate
     #fit_values = fitfunc(np.arange(len(date_range)))
     #df = pd.DataFrame({'date': date_range, 'daily_rate': fit_values})
  
-    rate_df['sine_fit'] = res["fitfunc"](tt)
+    rate_df['fit'] = res["fitfunc"](tt)
 
     '''
     df_all = pd.DataFrame({'date':x_datetime,'rate_gcr':  res["fitfunc"](tt)}) #sine fit with all data
@@ -161,7 +161,8 @@ def fit_sin(tt, yy): # Helping function for gcr_edac()
 def create_normalized_rates(method): # Calculate normalized EDAC rate and save to .txt file, roll
     start_time = time.time()
     print('--------- Starting the normalization process ------')
-    gcr_component = gcr_edac(method)
+    #gcr_component = fit_sine_gcr(method)
+    gcr_component = savitzky_fit_gcr(method)
     first_gcr = gcr_component['date'].iloc[0]
     last_gcr = gcr_component['date'].iloc[-1]
 
@@ -188,20 +189,21 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
 
     normalized_df = rate_df.copy()
 
-    normalized_df['gcr_component'] = gcr_component['sine_fit']
-    
-    normalized_df['normalized_rate'] = normalized_df['daily_rate']/normalized_df['gcr_component']
-    print("normalized_df herE: ", normalized_df)    
-    #normalized_df['normalized_rate'] = normalized_df['daily_rate']-normalized_df['gcr_component']
+    normalized_df['gcr_component'] = gcr_component['fit']
+    ## DIVISION
+    #normalized_df['normalized_rate'] = normalized_df['daily_rate']/normalized_df['gcr_component']
+    ## SUBTRACTION
+    normalized_df['normalized_rate'] = normalized_df['daily_rate']-normalized_df['gcr_component']
+    print("normalized_df: ", normalized_df)
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
     
     ax1.plot(normalized_df['date'],normalized_df['daily_rate'], label='EDAC daily rate')
     ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='GCR component of EDAC daily rate')
-    ax2.plot(normalized_df['date'], normalized_df['normalized_rate'], label='Normalized daily EDAC rate')
+    ax2.plot(normalized_df['date'], normalized_df['normalized_rate'], color='#4daf4a',label='Normalized daily EDAC rate')
     
     ax1.set_ylim([-0.5, 18])
     #ax2.set_ylim([-0.5, 18])
-    plt.suptitle('Normalization by division', fontsize=16)
+    plt.suptitle('Normalization by subtraction', fontsize=16)
     ax2.set_xlabel('Date', fontsize = 12)
     ax1.set_ylabel('EDAC daily rate', fontsize = 12)
     ax2.set_ylabel('EDAC normalized daily rate', fontsize = 12)
@@ -220,98 +222,52 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
     normalized_df.to_csv(path + filename, sep='\t', index=False) # Save to file
     print("File ", filename, " created")
 
-def savitzky_fit():
-    rate_df = read_resampled_df()
-    rate_df = rate_df[rate_df['daily_rate'] > 0] 
-    savgolwindow=700
+def savitzky_fit_gcr(method):
+    rate_df = read_resampled_df(method)
+    #rate_df = rate_df[rate_df['daily_rate'] > 0] # Remove zero days
+    savgolwindow=500
     polyorder=2
     y_filtered = savgol_filter(rate_df['daily_rate'], savgolwindow, polyorder) # Apply filtering to the EDAC rates with large spikes removed
-    rate_df['normalized']=rate_df['daily_rate']/y_filtered
-    print(rate_df)
+
+    rate_df['fit'] = y_filtered
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    '''
+    df_sun = process_sidc_ssn()
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
+    #####rate_df['normalized']=rate_df['daily_rate']/y_filtered
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6))
 
     ax1.plot(rate_df['date'],rate_df['daily_rate'],label='EDAC count rate')
     ax1.plot(rate_df['date'],y_filtered,label='Savitzky-Golay fit')
     ax2.set_xlabel('Date')
     ax1.set_ylabel('EDAC count rate')
-    ax2.set_ylabel('EDAC normalized rate')
-    ax2.plot(rate_df['date'],rate_df['normalized'],label='Normalized')
-    ax1.grid()
-    ax2.grid()
-    plt.show()
-
-    binsize = 0.5
-    max = np.max(rate_df['normalized'])
-    min = np.min(rate_df['normalized'])
-    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
-    plt.figure(figsize=(8,6))
-    result =plt.hist(rate_df['normalized'],bins = bins, density = False, color='#FF6B6B',ec='black')
-    plt.xlabel('EDAC normalized rate')
-    plt.ylabel('Occurrences')
-    plt.show()
-
-def fit_distribution_to_sine_rates():
-
-    timewindow_start = pd.to_datetime("2017-09-01")
-    timewindow_end = pd.to_datetime("2017-09-17")
-    
-    rate_df = gcr_edac_v2()
-    
-    rate_df['subtract'] = rate_df['daily_rate']-rate_df['sine_fit']
-    rate_df['divide'] = rate_df['daily_rate']/rate_df['sine_fit']
-    #rate_df =  rate_df[(rate_df['date'] > timewindow_start) & (rate_df['date'] < timewindow_end)]
-    
-    df_sun = pd.read_csv('files/SunSpots_2000-2020.txt',names=["date", "count"], skiprows=0, sep="\t", parse_dates = ['date'])
-    #df_sun =  df_sun[(df_sun['date'] > timewindow_start) & (df_sun['date'] < timewindow_end)]
-    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6))
-    ax1.plot(rate_df['date'],rate_df['daily_rate'], label='EDAC count rate')
-    ax1.plot(rate_df['date'],rate_df['sine_fit'],label='sine fit')
-    #ax1.plot(rate_df['date'],rate_df['subtract'],label='subtract')
-    #ax1.plot(rate_df['date'],rate_df['divide'],label='divide')
-    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
-
-    # Indices where the date is the same as the beginning window date
-    index_exact =  np.where((df_sun['date']==start_date))[0][0]
-    df_sun = df_sun.iloc[index_exact:]
-    savgolwindow_sunspots = 601
-    sunspots_smoothed= savgol_filter(df_sun['count'], savgolwindow_sunspots, 3)
-    ax2.set(xlabel="Date", ylabel = "Number of sunspots", title = "Solar Cycle")
-    ax1.set(ylabel= "EDAC count rate [#/day]")
-    ax2.plot(df_sun['date'],df_sun['count'], label="Number of sunspots")
-    ax2.plot(df_sun["date"], sunspots_smoothed,linewidth=1,label='Smoothed sunspots, savgolwindow = ' + str(savgolwindow_sunspots))
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,
+             color='#4daf4a',
+             label='Smoothed sunspots')
+    ax2.set_ylabel('Sunspot number')
+    #ax2.set_ylabel('EDAC normalized rate')
+    #ax2.plot(rate_df['date'],rate_df['normalized'],label='Normalized')
     ax1.grid()
     ax2.grid()
     ax1.legend()
     ax2.legend()
     plt.show()
 
-
-    binsize = 0.03
-    data = rate_df['sine_fit']
-    max = np.max(data)
-    min = np.min(data)
-    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
-    plt.figure(figsize=(8,6))
-    result =plt.hist(data,bins = bins, density = False, color='#FF6B6B',ec='black')
-    for i in range(len(result[0])):
-        plt.text(bins[i], result[0][i], str(int(result[0][i])), ha='left', va='bottom')
-    plt.xlabel("EDAC count rate")
-    plt.ylabel("Occurrences")
-    plt.show()
-
-
-    binsize = 0.03
-    data = rate_df['sine_fit']
-    max = np.max(data)
-    min = np.min(data)
-    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
-    plt.figure(figsize=(8,6))
-    result =plt.hist(data,bins = bins, density = False, color='#FF6B6B',ec='black')
-    for i in range(len(result[0])):
-        plt.text(bins[i], result[0][i], str(int(result[0][i])), ha='left', va='bottom')
-    plt.xlabel("EDAC count rate")
-    plt.ylabel("Occurrences")
-    plt.show()
+    #binsize = 0.5
+    #max = np.max(rate_df['normalized'])
+    #min = np.min(rate_df['normalized'])
+    #bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
+    #plt.figure(figsize=(8,6))
+    #result =plt.hist(rate_df['normalized'],bins = bins, density = False, color='#FF6B6B',ec='black')
+    #plt.xlabel('EDAC normalized rate')
+    #plt.ylabel('Occurrences')
+    #plt.show()
+    '''
+    return rate_df
 
 def read_normalized_rates(method):
     if method == 'roll':
@@ -319,6 +275,7 @@ def read_normalized_rates(method):
     else:
         df = pd.read_csv(path + 'normalized_edac_nonroll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     return df
+
 ### -------------------------------------------
 def print_missing_dates(date_column):
     ## example of date_column input: df['datetime].dt.date  # remove the time from datetime object
@@ -385,7 +342,7 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
     
     ax1.plot(normalized_df['date'], normalized_df['daily_rate'], label='Count rate')
-    ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='Sine fit')
+    ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='Savitzky-Golay fit') 
     ax2.plot(normalized_df['date'],normalized_df['normalized_rate'], label='Normalized count rate')
     ax2.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('EDAC count rate [#/day]', fontsize = 10)
@@ -394,6 +351,14 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
     ax2.grid()
     ax1.legend()
     ax2.legend()
+    plt.show()
+
+    plt.figure()
+    plt.plot(normalized_df['date'], normalized_df['daily_rate'], label='EDAC count rate')
+    plt.xlabel('Date')
+    plt.ylabel('Count rate [#/day]')
+    plt.grid()
+    plt.legend()
     plt.show()
 
 def skewed_gaussian_model(method):
@@ -442,18 +407,23 @@ def skewed_gaussian_model(method):
 
 def plot_histogram_rates(method):
     df = read_normalized_rates(method)
-    df = df[df['date'] < pd.to_datetime('2022-05-01')]
-    data = df['normalized_rate']
-    binsize = 0.3
+    print("df: ", df)
+    #df = df[df['date'] < pd.to_datetime('2022-05-01')]
+    #data = df['normalized_rate']
+    data = df['standardized_rate']
+    binsize = 0.7
     max_rate = np.max(data)
     min_rate = np.min(data)
     bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
+    #print(bins)
     counts, bin_edges = np.histogram(data, bins=bins, density=False)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2 
-    print(bin_edges)
+    #print("bin_edges: ", bin_edges)
     plt.figure()
-    plt.hist(data, bins=bin_edges, edgecolor='black')
-    plt.title('Normalized count rate')
+    plt.hist(data, bins=bin_edges, color='#4daf4a',edgecolor='black')
+    plt.title('Standardized rate distribution')
+    plt.xlabel('Count rate')
+    plt.ylabel('Occurrences')
     plt.show()
 
 def fit_skewnorm(method):
@@ -480,57 +450,78 @@ def fit_skewnorm(method):
     plt.plot(x, p, 'k', linewidth=2)
     plt.show()
 
-
 def group_by_6_months(date):
     return pd.Timestamp(date.year, ((date.month-1)//6)*6 + 1, 1)
 
-def eyeball():
+
+
+def eyeball_standardization():
     method = 'nonroll'
     df = read_normalized_rates(method)
-    threshold = 3.4
-    thresholdcolor = '#e41a1c'
-    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
-    
-    ax1.plot(df['date'], df['daily_rate'], label='EDAC count rate')
-    ax1.plot(df['date'],df['gcr_component'], label='GCR component')
-    ax2.plot(df['date'], df['normalized_rate'], 
-             color='#377eb8',
-             label='Normalized count rate')
-    ax2.axhline(threshold, color= thresholdcolor, label='Threshold: ' + str(threshold))
-    ax2.set_xlabel('Date', fontsize = 10)
-    ax1.set_ylabel('EDAC count rate [#/day]', fontsize = 10)
-    ax2.set_ylabel('Normalized EDAC count rate [#/day]', fontsize = 10)
-    ax1.grid()
-    ax2.grid()
-    ax1.legend()
-    ax2.legend()
-    #plt.show()
 
+    data_mean = df['standardized_rate'].mean()
+    data_std_dev = df['standardized_rate'].std()
+
+    upper_threshold = data_mean+2*data_std_dev
+    thresholdcolor = '#984ea3'#'#e41a1c'
+    lower_threshold = data_mean-1*data_std_dev
     start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    suncolor = 'red' #'#4daf4a'
     df_sun = process_sidc_ssn()
     index_exact =  np.where((df_sun['date']==start_date))[0][0]
     df_sun = df_sun.iloc[index_exact:]
     savgolwindow_sunspots = 601
     sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
 
-    spike_df = df.copy()
-    spike_df = spike_df[spike_df['normalized_rate'] >= threshold]
-
-    spike_df.reset_index(inplace=True)
+    fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,8))
     
+    ax1.plot(df['date'], df['daily_rate'], label='EDAC count rate')
+    ax1.plot(df['date'],df['gcr_component'], label='Savitzky-Golay fit')
+
+    ax2.plot(df['date'], df['standardized_rate'], 
+             color='#4daf4a',
+             label='Standardized count rate')
+    ax2.axhline(upper_threshold, color= thresholdcolor, label='Threshold: ' + str(upper_threshold))
+    ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
+    ax3.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Count rate [#/day]', fontsize = 10)
+    ax2.set_ylabel('Standardized count rate [#/day]', fontsize = 10)
+    ax3.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Number of sunspots")
+    ax3.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,
+             color='#a65628',
+             label='Smoothed sunspots')
+    ax3.set_ylabel('Sunspot number')
+    ax1.grid()
+    ax2.grid()
+    ax3.grid()
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    #plt.show()
+
+
+    spike_df = df.copy()
+    spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold) | (spike_df['standardized_rate'] <= lower_threshold)]
+   
+    spike_df.reset_index(inplace=True)
+    #print("spike_df: ", spike_df)
     
     spike_df['6_month_group'] = spike_df['date'].apply(group_by_6_months)
     grouped_df = spike_df.groupby('6_month_group').size().reset_index()
     grouped_df.columns=['datebin','counts']
-    spike_df.to_csv(path + 'datesabovethreshold.txt', sep='\t', index=False) # Save to file   
-    print(spike_df)
+    grouped_df['datebin'] = grouped_df['datebin'] + pd.DateOffset(months=3)
     print(grouped_df)
+    stormy_total = grouped_df['counts'].sum()
+
+    print("Number of stormy days: ", stormy_total)
+    spike_df.to_csv(path + 'datesoutsidethreshold.txt', sep='\t', index=False) # Save to file   
     fig, ax1 = plt.subplots(figsize=(10,6))
     spikecolor = '#377eb8'
-    suncolor = '#4daf4a'
+    suncolor = '#a65628'
     ax1.plot(grouped_df['datebin'],grouped_df['counts'],
              marker='o',color=spikecolor,
-             label='Number of days above threshold')
+             label='Number of days outside thresholds')
     ax2=ax1.twinx()
     #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
     ax2.plot(df_sun['date'], sunspots_smoothed,
@@ -538,8 +529,89 @@ def eyeball():
              label='Smoothed sunspots')
     sun_limit = max(sunspots_smoothed)+10
     ax2.set_ylim([0, max(sunspots_smoothed+10)])
-    ax2.set_xlabel('Date', fontsize = 10)
+    ax1.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('Number of stormy days', fontsize = 10)
+    ax2.set_ylabel('Sunspot number')
+    ax1.tick_params(axis="y", labelcolor=spikecolor)
+    ax2.tick_params(axis="y", labelcolor=suncolor)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.title('Sunspot number and number of stormy days in 6 month bins')
+    plt.show()
+def eyeball():
+    method = 'nonroll'
+    df = read_normalized_rates(method)
+    #print(df)
+
+    upper_threshold = 2
+    thresholdcolor = '#984ea3'#'#e41a1c'
+    lower_threshold = -1
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    suncolor = 'red' #'#4daf4a'
+    df_sun = process_sidc_ssn()
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
+
+    fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,8))
+    
+    ax1.plot(df['date'], df['daily_rate'], label='EDAC count rate')
+    ax1.plot(df['date'],df['gcr_component'], label='Savitzky-Golay fit')
+    ax2.plot(df['date'], df['normalized_rate'], 
+             color='#4daf4a',
+             label='Normalized count rate')
+    ax2.axhline(upper_threshold, color= thresholdcolor, label='Threshold: ' + str(upper_threshold))
+    ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
+    ax3.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Count rate [#/day]', fontsize = 10)
+    ax2.set_ylabel('Standardized count rate [#/day]', fontsize = 10)
+    ax3.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Number of sunspots")
+    ax3.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,
+             color='#a65628',
+             label='Smoothed sunspots')
+    ax3.set_ylabel('Sunspot number')
+    ax1.grid()
+    ax2.grid()
+    ax3.grid()
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    #plt.show()
+
+
+    spike_df = df.copy()
+    
+    spike_df = spike_df[(spike_df['normalized_rate'] >= upper_threshold) | (spike_df['normalized_rate'] <= lower_threshold)]
+    spike_df.reset_index(inplace=True)
+ 
+    
+    spike_df['6_month_group'] = spike_df['date'].apply(group_by_6_months)
+    grouped_df = spike_df.groupby('6_month_group').size().reset_index()
+    grouped_df.columns=['datebin','counts']
+    grouped_df['datebin'] = grouped_df['datebin'] + pd.DateOffset(months=3)
+    print(grouped_df)
+    stormy_total = grouped_df['counts'].sum()
+
+    print("Number of stormy days: ", stormy_total)
+    spike_df.to_csv(path + 'datesoutsidethreshold.txt', sep='\t', index=False) # Save to file   
+    fig, ax1 = plt.subplots(figsize=(10,6))
+    spikecolor = '#377eb8'
+    suncolor = '#a65628'
+    ax1.plot(grouped_df['datebin'],grouped_df['counts'],
+             marker='o',color=spikecolor,
+             label='Number of days outside thresholds')
+    ax2=ax1.twinx()
+    #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,color=suncolor,
+             label='Smoothed sunspots')
+    sun_limit = max(sunspots_smoothed)+10
+    ax2.set_ylim([0, max(sunspots_smoothed+10)])
+    ax1.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Number of stormy days', fontsize = 10)
+    ax2.set_ylabel('Sunspot number')
     ax1.tick_params(axis="y", labelcolor=spikecolor)
     ax2.tick_params(axis="y", labelcolor=suncolor)
     ax1.legend(loc='upper left')
@@ -548,6 +620,23 @@ def eyeball():
     plt.show()
 
 
+
+from scipy.signal import detrend
+def detrending():
+    method = 'nonroll'
+    df = read_normalized_rates(method)
+    data = df['daily_rate']
+    rolling_mean = data.rolling(window=180, center=True).mean()
+    detrended = data-rolling_mean
+    detrended = detrend(data, type='constant')
+    plt.figure()
+    plt.plot(df['date'],data)
+    
+    plt.plot(df['date'],detrended,label='detrended')
+    plt.plot(df['date'],rolling_mean,label='rolling_mean')
+    plt.legend()
+    plt.grid()
+    plt.show()
 def process_sidc_ssn(): # returns sunspot dataframe
     column_names = ['year', 'month', 'day', 'date_fraction','daily_sunspotnumber','std','observations','status']
     df_sun = pd.read_csv(path+'SN_d_tot_V2.0.csv',names = column_names, sep=';')
@@ -556,6 +645,86 @@ def process_sidc_ssn(): # returns sunspot dataframe
     df_sun['date'] = pd.to_datetime(df_sun[['year', 'month', 'day']]) 
     df_sun = df_sun[['date', 'daily_sunspotnumber']]
     return df_sun
+
+
+def standardizing():
+    method = 'nonroll'
+    df = read_normalized_rates(method)
+    data_mean = df['daily_rate'].mean()
+    data_std_dev = df['daily_rate'].std()
+    print("mean, std_dev: ", data_mean, data_std_dev)
+    df['standardized_rate'] = (df['daily_rate']-data_mean)/data_std_dev
+    plt.figure()
+    plt.plot(df['date'],df['daily_rate'],label='Count rate')
+    plt.plot(df['date'],df['standardized_rate'],color='#4daf4a', label='Standardized')
+    plt.legend()
+    plt.xlabel('Date')
+    plt.ylabel('EDAC count rate [#/day]')
+    plt.show()
+    filename = 'normalized_edac_nonroll.txt'
+    df.to_csv(path + filename, sep='\t', index=False) # Save to file
+def fit_distribution_to_sine_rates():
+
+    timewindow_start = pd.to_datetime("2017-09-01")
+    timewindow_end = pd.to_datetime("2017-09-17")
+    
+    rate_df = gcr_edac_v2()
+    
+    rate_df['subtract'] = rate_df['daily_rate']-rate_df['sine_fit']
+    rate_df['divide'] = rate_df['daily_rate']/rate_df['sine_fit']
+    #rate_df =  rate_df[(rate_df['date'] > timewindow_start) & (rate_df['date'] < timewindow_end)]
+    
+    df_sun = pd.read_csv('files/SunSpots_2000-2020.txt',names=["date", "count"], skiprows=0, sep="\t", parse_dates = ['date'])
+    #df_sun =  df_sun[(df_sun['date'] > timewindow_start) & (df_sun['date'] < timewindow_end)]
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6))
+    ax1.plot(rate_df['date'],rate_df['daily_rate'], label='EDAC count rate')
+    ax1.plot(rate_df['date'],rate_df['sine_fit'],label='sine fit')
+    #ax1.plot(rate_df['date'],rate_df['subtract'],label='subtract')
+    #ax1.plot(rate_df['date'],rate_df['divide'],label='divide')
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+
+    # Indices where the date is the same as the beginning window date
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['count'], savgolwindow_sunspots, 3)
+    ax2.set(xlabel="Date", ylabel = "Number of sunspots", title = "Solar Cycle")
+    ax1.set(ylabel= "EDAC count rate [#/day]")
+    ax2.plot(df_sun['date'],df_sun['count'], label="Number of sunspots")
+    ax2.plot(df_sun["date"], sunspots_smoothed,linewidth=1,label='Smoothed sunspots, savgolwindow = ' + str(savgolwindow_sunspots))
+    ax1.grid()
+    ax2.grid()
+    ax1.legend()
+    ax2.legend()
+    plt.show()
+
+
+    binsize = 0.03
+    data = rate_df['sine_fit']
+    max = np.max(data)
+    min = np.min(data)
+    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
+    plt.figure(figsize=(8,6))
+    result =plt.hist(data,bins = bins, density = False, color='#FF6B6B',ec='black')
+    for i in range(len(result[0])):
+        plt.text(bins[i], result[0][i], str(int(result[0][i])), ha='left', va='bottom')
+    plt.xlabel("EDAC count rate")
+    plt.ylabel("Occurrences")
+    plt.show()
+
+
+    binsize = 0.03
+    data = rate_df['sine_fit']
+    max = np.max(data)
+    min = np.min(data)
+    bins = np.arange(min, max+binsize, binsize) # Choose the size of the bins
+    plt.figure(figsize=(8,6))
+    result =plt.hist(data,bins = bins, density = False, color='#FF6B6B',ec='black')
+    for i in range(len(result[0])):
+        plt.text(bins[i], result[0][i], str(int(result[0][i])), ha='left', va='bottom')
+    plt.xlabel("EDAC count rate")
+    plt.ylabel("Occurrences")
+    plt.show()
 
 
 path = 'files/' # Path of where files are located
@@ -579,11 +748,19 @@ def main():
     #process_new_raw_edac(method)
 
     #show_timerange(pd.to_datetime('2017-09-01 23:59:00'), pd.to_datetime('2017-09-15 00:00:00'), patched_edac_filename, method)
-    #plot_rates_all(method)
-    #plot_histogram_rates(method)
     #skewed_gaussian_model(method)
-    eyeball()
+    #savitzky_fit(method)
+    #plot_rates_all(method)
+    #create_normalized_rates(method)
+    #plot_histogram_rates(method)
+   
+    detrending()
+    #standardizing()
+    #eyeball_standardization()
+    #eyeball()
     print("End")
 
 if __name__ == "__main__":
     main()
+
+
