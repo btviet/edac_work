@@ -193,8 +193,12 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
     ## DIVISION
     #normalized_df['normalized_rate'] = normalized_df['daily_rate']/normalized_df['gcr_component']
     ## SUBTRACTION
+    std_dev = normalized_df['daily_rate'].std()
+    #print("std_dev: ", std_dev)
+    #normalized_df['normalized_rate'] = (normalized_df['daily_rate']-normalized_df['gcr_component'])/std_dev
     normalized_df['normalized_rate'] = normalized_df['daily_rate']-normalized_df['gcr_component']
     print("normalized_df: ", normalized_df)
+    print("detrended mean: ", normalized_df['normalized_rate'].mean())
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
     
     ax1.plot(normalized_df['date'],normalized_df['daily_rate'], label='EDAC daily rate')
@@ -297,8 +301,9 @@ def show_timerange(startdate, enddate, raw_edac_file, method):
     filtered_zeroset = filtered_zeroset[(filtered_zeroset['datetime'] > startdate) & (filtered_zeroset['datetime'] < enddate)]
 
     normalized_rate = read_normalized_rates(method)
+    
     normalized_rate =  normalized_rate[(normalized_rate['date'] > startdate) & (normalized_rate['date'] < enddate)]
-
+    print("normalized_rate: ", normalized_rate)
     if method =='roll':
      rate_df = read_rate_df(raw_window) ## assuming that create_rate_df(days_window) has been run already
     else:
@@ -338,19 +343,33 @@ def show_timerange(startdate, enddate, raw_edac_file, method):
 
 def plot_rates_all(method): # Plots the EDAC count rate for the whole time period, before and after normalization
     normalized_df= read_normalized_rates(method)
+    df_sun = process_sidc_ssn()
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
 
-    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
+    fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,8))
     
     ax1.plot(normalized_df['date'], normalized_df['daily_rate'], label='Count rate')
     ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='Savitzky-Golay fit') 
-    ax2.plot(normalized_df['date'],normalized_df['normalized_rate'], label='Normalized count rate')
-    ax2.set_xlabel('Date', fontsize = 10)
+    ax2.plot(normalized_df['date'],normalized_df['normalized_rate'], color ='#4daf4a',label='Normalized count rate')
+    ax3.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Sunspot number")
+    ax3.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,
+             color='#a65628',
+             label='Smoothed sunspot number')
+    ax3.set_ylabel('Sunspot number')
+    ax3.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('EDAC count rate [#/day]', fontsize = 10)
     ax2.set_ylabel('Normalized EDAC count rate [#/day]', fontsize = 10)
     ax1.grid()
     ax2.grid()
+    ax3.grid()
     ax1.legend()
     ax2.legend()
+    ax3.legend()
     plt.show()
 
     plt.figure()
@@ -409,8 +428,8 @@ def plot_histogram_rates(method):
     df = read_normalized_rates(method)
     print("df: ", df)
     #df = df[df['date'] < pd.to_datetime('2022-05-01')]
-    #data = df['normalized_rate']
-    data = df['standardized_rate']
+    data = df['normalized_rate']
+    #data = df['standardized_rate']
     binsize = 0.7
     max_rate = np.max(data)
     min_rate = np.min(data)
@@ -421,7 +440,7 @@ def plot_histogram_rates(method):
     #print("bin_edges: ", bin_edges)
     plt.figure()
     plt.hist(data, bins=bin_edges, color='#4daf4a',edgecolor='black')
-    plt.title('Standardized rate distribution')
+    plt.title('Normalized rate distribution')
     plt.xlabel('Count rate')
     plt.ylabel('Occurrences')
     plt.show()
@@ -456,12 +475,13 @@ def group_by_6_months(date):
 
 
 def eyeball_standardization():
+    standardizing()
     method = 'nonroll'
     df = read_normalized_rates(method)
-
+    print(df)
     data_mean = df['standardized_rate'].mean()
     data_std_dev = df['standardized_rate'].std()
-
+    print(data_mean, data_std_dev)
     upper_threshold = data_mean+2*data_std_dev
     thresholdcolor = '#984ea3'#'#e41a1c'
     lower_threshold = data_mean-1*data_std_dev
@@ -482,7 +502,7 @@ def eyeball_standardization():
              color='#4daf4a',
              label='Standardized count rate')
     ax2.axhline(upper_threshold, color= thresholdcolor, label='Threshold: ' + str(upper_threshold))
-    ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
+    #ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
     ax3.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('Count rate [#/day]', fontsize = 10)
     ax2.set_ylabel('Standardized count rate [#/day]', fontsize = 10)
@@ -503,7 +523,11 @@ def eyeball_standardization():
 
     spike_df = df.copy()
     spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold) | (spike_df['standardized_rate'] <= lower_threshold)]
-   
+    spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold)]
+    troughs= spike_df[spike_df['standardized_rate'] <= lower_threshold]
+    peaks = spike_df[spike_df['standardized_rate']>= upper_threshold]
+    print("troughs: ", troughs)
+    print("peaks: ", peaks)
     spike_df.reset_index(inplace=True)
     #print("spike_df: ", spike_df)
     
@@ -541,11 +565,10 @@ def eyeball_standardization():
 def eyeball():
     method = 'nonroll'
     df = read_normalized_rates(method)
-    #print(df)
-
-    upper_threshold = 2
+    print(df)
+    upper_threshold = 2.177
     thresholdcolor = '#984ea3'#'#e41a1c'
-    lower_threshold = -1
+    lower_threshold = -3#-1.324
     start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
     suncolor = 'red' #'#4daf4a'
     df_sun = process_sidc_ssn()
@@ -620,23 +643,6 @@ def eyeball():
     plt.show()
 
 
-
-from scipy.signal import detrend
-def detrending():
-    method = 'nonroll'
-    df = read_normalized_rates(method)
-    data = df['daily_rate']
-    rolling_mean = data.rolling(window=180, center=True).mean()
-    detrended = data-rolling_mean
-    detrended = detrend(data, type='constant')
-    plt.figure()
-    plt.plot(df['date'],data)
-    
-    plt.plot(df['date'],detrended,label='detrended')
-    plt.plot(df['date'],rolling_mean,label='rolling_mean')
-    plt.legend()
-    plt.grid()
-    plt.show()
 def process_sidc_ssn(): # returns sunspot dataframe
     column_names = ['year', 'month', 'day', 'date_fraction','daily_sunspotnumber','std','observations','status']
     df_sun = pd.read_csv(path+'SN_d_tot_V2.0.csv',names = column_names, sep=';')
@@ -652,8 +658,9 @@ def standardizing():
     df = read_normalized_rates(method)
     data_mean = df['daily_rate'].mean()
     data_std_dev = df['daily_rate'].std()
+ 
     print("mean, std_dev: ", data_mean, data_std_dev)
-    df['standardized_rate'] = (df['daily_rate']-data_mean)/data_std_dev
+    df['standardized_rate'] = (df['daily_rate']-df['gcr_component'])#/data_std_dev
     plt.figure()
     plt.plot(df['date'],df['daily_rate'],label='Count rate')
     plt.plot(df['date'],df['standardized_rate'],color='#4daf4a', label='Standardized')
@@ -663,6 +670,7 @@ def standardizing():
     plt.show()
     filename = 'normalized_edac_nonroll.txt'
     df.to_csv(path + filename, sep='\t', index=False) # Save to file
+    print("standardized df: ", df)
 def fit_distribution_to_sine_rates():
 
     timewindow_start = pd.to_datetime("2017-09-01")
@@ -726,7 +734,63 @@ def fit_distribution_to_sine_rates():
     plt.ylabel("Occurrences")
     plt.show()
 
+from distfit import distfit
+def try_distfit():
+    method = 'nonroll'
+    df = read_normalized_rates(method)
 
+    print(df)
+    X=df['daily_rate']
+    #X = np.random.normal(0, 2, 1000)
+    #y = [-8,-6,0,1,2,3,4,5,6]
+
+    # Initialize model
+    dfit = distfit()
+
+    # Find best theoretical distribution for empirical data X
+    dfit.fit_transform(X)
+    dfit.plot()
+    plt.show()
+
+    # Make prediction
+    #dfit.predict(y)
+    #dfit.plot()
+    
+import obspy
+from obspy.signal.detrend import polynomial
+def try_obspy():
+    tr = obspy.read()[0].filter("highpass", freq=2)
+    tr.data += 6000 + 4 * tr.times() ** 2
+    tr.data -= 0.1 * tr.times() ** 3 + 0.00001 * tr.times() ** 5
+    #data = tr.data
+    method = 'nonroll'
+    df = read_normalized_rates(method)
+
+    data=df['daily_rate']
+    test = polynomial(data, order=12, plot=True)  
+    
+import statsmodels.api as sm
+def try_statsmodels():
+    method = 'nonroll'
+    df = read_normalized_rates(method)
+
+
+    # Assuming your data has a column named 'value' containing the time series values
+    ts_values = df['daily_rate']
+
+    # Apply the HP filter
+    cycle, trend = sm.tsa.filters.hpfilter(ts_values)
+
+    # Plot the original time series and the trend component
+    plt.figure(figsize=(10, 6))
+    plt.plot(ts_values, label='Original Time Series')
+    plt.plot(trend, label='Trend Component from HP filter', linestyle='--')
+    plt.plot(df['gcr_component'],label='Savitzky-Golay fit', color='#e41a1c')
+    plt.legend()
+    plt.title('Original Time Series and Trend Component')
+    plt.xlabel('Time')
+    plt.ylabel('Value')
+    plt.show()
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'raw_edac/patched_mex_edac.txt'
@@ -747,17 +811,21 @@ def main():
     method='nonroll'
     #process_new_raw_edac(method)
 
-    #show_timerange(pd.to_datetime('2017-09-01 23:59:00'), pd.to_datetime('2017-09-15 00:00:00'), patched_edac_filename, method)
+    #show_timerange(pd.to_datetime('2013-03-31 23:59:00'), pd.to_datetime('2013-04-23 00:00:00'), patched_edac_filename, method)
     #skewed_gaussian_model(method)
     #savitzky_fit(method)
-    #plot_rates_all(method)
+    plot_rates_all(method)
     #create_normalized_rates(method)
     #plot_histogram_rates(method)
    
-    detrending()
+ 
     #standardizing()
     #eyeball_standardization()
     #eyeball()
+
+    #try_distfit()
+    #try_obspy()
+    #try_statsmodels()
     print("End")
 
 if __name__ == "__main__":
