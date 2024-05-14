@@ -158,6 +158,132 @@ def fit_sin(tt, yy): # Helping function for gcr_edac()
     #print(A, w, p, c, f)
     return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)}
 
+def create_detrended_rates(method):
+    gcr_component = savitzky_fit_gcr(method)
+    first_gcr = gcr_component['date'].iloc[0]
+    last_gcr = gcr_component['date'].iloc[-1]
+
+    if method == 'roll':
+        rate_df = read_rate_df(raw_window)
+    else:
+        rate_df = read_resampled_df(method)
+
+    first_rate = rate_df['date'].iloc[0]
+    last_rate = rate_df['date'].iloc[-1]
+    if first_gcr >= first_rate:
+        rate_df =  rate_df[rate_df['date'] >= first_gcr]
+    else:
+        gcr_component = gcr_component[gcr_component['date'] >= first_rate]
+
+    if last_gcr >= last_rate:
+        gcr_component = gcr_component[gcr_component['date'] <= last_rate]
+        
+    else:
+        rate_df = rate_df[rate_df['date'] <= last_gcr]
+
+    rate_df.reset_index(drop=True, inplace=True)
+    gcr_component.reset_index(drop=True, inplace=True)
+
+    detrended_df = rate_df.copy()
+
+    detrended_df['gcr_component'] = gcr_component['fit']
+    
+    ### Detrending by subtraction
+    detrended_df['detrended_rate'] = detrended_df['daily_rate']-detrended_df['gcr_component']
+    print("detrended_df: ", detrended_df)
+
+    ### Detrending by division
+    #detrended_df['detrended_rate'] = detrended_df['daily_rate']/detrended_df['gcr_component']
+    
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    suncolor = 'red' #'#4daf4a'
+    df_sun = process_sidc_ssn()
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
+
+    fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,8))
+    
+    ax1.plot(detrended_df['date'],detrended_df['daily_rate'], label='EDAC daily rate')
+    ax1.plot(detrended_df['date'],detrended_df['gcr_component'], label='GCR component of EDAC daily rate')
+    ax2.plot(detrended_df['date'], detrended_df['detrended_rate'], color='#4daf4a',label='Detrended EDAC rate')
+    ax3.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Number of sunspots")
+    ax3.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,
+             color='#a65628',
+             label='Smoothed sunspots')
+    ax3.set_ylabel('Sunspot number')
+    ax1.set_ylim([-0.5, 18])
+    #ax2.set_ylim([-0.5, 18])
+    #plt.suptitle('Normalization by subtraction', fontsize=16)
+    ax3.set_xlabel('Date', fontsize = 12)
+    ax1.set_ylabel('EDAC daily rate', fontsize = 12)
+    ax2.set_ylabel('Detrended rate', fontsize = 12)
+    ax2.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+    ax1.grid()
+    ax2.grid()
+    ax3.grid()
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    plt.tight_layout(pad=1.0)
+    #plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
+    plt.show()
+    if method == 'roll':
+        filename = 'detrended_edac_roll.txt'
+    else:
+        filename = 'detrended_edac_nonroll.txt'
+    detrended_df.to_csv(path + filename, sep='\t', index=False) # Save to file
+    print("File ", filename, " created")
+
+def create_standardized_rates(method):
+    detrended_df = read_detrended_rates(method)
+    detrended_mean = detrended_df['detrended_rate'].mean()
+    detrended_std = detrended_df['detrended_rate'].std()
+    detrended_df['standardized_rate'] = (detrended_df['detrended_rate']-detrended_mean)/detrended_std
+    print(detrended_df)
+    print("Mean, std: ", detrended_mean, detrended_std)
+
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    suncolor = 'red' #'#4daf4a'
+    df_sun = process_sidc_ssn()
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
+
+    fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,8))
+    
+    ax1.plot(detrended_df['date'], detrended_df['standardized_rate'], color='#4daf4a',label='Standardized de-trended EDAC rate')
+    ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Number of sunspots")
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,
+             color='#a65628',
+             label='Smoothed sunspots')
+    ax2.set_ylabel('Sunspot number')
+
+    ax2.set_xlabel('Date', fontsize = 12)
+    ax1.set_ylabel('Standardized rate', fontsize = 12)
+    ax2.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+    ax1.grid()
+    ax2.grid()
+
+    ax1.legend()
+    ax2.legend()
+
+    plt.tight_layout(pad=1.0)
+    #plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
+    plt.show()
+    if method == 'roll':
+        filename = 'standardized_edac_roll.txt'
+    else:
+        filename = 'standardized_edac_nonroll.txt'
+    detrended_df.to_csv(path + filename, sep='\t', index=False) # Save to file
+    print("File ", filename, " created")
+
+
+
 def create_normalized_rates(method): # Calculate normalized EDAC rate and save to .txt file, roll
     start_time = time.time()
     print('--------- Starting the normalization process ------')
@@ -280,6 +406,19 @@ def read_normalized_rates(method):
         df = pd.read_csv(path + 'normalized_edac_nonroll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     return df
 
+def read_detrended_rates(method):
+    if method == 'roll':
+        df = pd.read_csv(path + 'detrended_edac_roll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    else:
+        df = pd.read_csv(path + 'detrended_edac_nonroll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    return df
+
+def read_standardized_rates(method):
+    if method == 'roll':
+        df = pd.read_csv(path + 'standardized_edac_roll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    else:
+        df = pd.read_csv(path + 'standardized_edac_nonroll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    return df 
 ### -------------------------------------------
 def print_missing_dates(date_column):
     ## example of date_column input: df['datetime].dt.date  # remove the time from datetime object
@@ -342,7 +481,8 @@ def show_timerange(startdate, enddate, raw_edac_file, method):
     plt.show()
 
 def plot_rates_all(method): # Plots the EDAC count rate for the whole time period, before and after normalization
-    normalized_df= read_normalized_rates(method)
+    standardized_df= read_standardized_rates(method)
+    print(standardized_df)
     df_sun = process_sidc_ssn()
     start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
     index_exact =  np.where((df_sun['date']==start_date))[0][0]
@@ -352,9 +492,9 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
 
     fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,8))
     
-    ax1.plot(normalized_df['date'], normalized_df['daily_rate'], label='Count rate')
-    ax1.plot(normalized_df['date'],normalized_df['gcr_component'], label='Savitzky-Golay fit') 
-    ax2.plot(normalized_df['date'],normalized_df['normalized_rate'], color ='#4daf4a',label='Normalized count rate')
+    ax1.plot(standardized_df['date'], standardized_df['daily_rate'], label='Count rate')
+    ax1.plot(standardized_df['date'],standardized_df['gcr_component'], label='Savitzky-Golay fit') 
+    ax2.plot(standardized_df['date'],standardized_df['standardized_rate'], color ='#4daf4a',label='Standardized count rate')
     ax3.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Sunspot number")
     ax3.plot(df_sun['date'], sunspots_smoothed,
              linewidth=1,
@@ -363,7 +503,7 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
     ax3.set_ylabel('Sunspot number')
     ax3.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('EDAC count rate [#/day]', fontsize = 10)
-    ax2.set_ylabel('Normalized EDAC count rate [#/day]', fontsize = 10)
+    ax2.set_ylabel('Standardized EDAC count rate [#/day]', fontsize = 10)
     ax1.grid()
     ax2.grid()
     ax3.grid()
@@ -372,13 +512,6 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
     ax3.legend()
     plt.show()
 
-    plt.figure()
-    plt.plot(normalized_df['date'], normalized_df['daily_rate'], label='EDAC count rate')
-    plt.xlabel('Date')
-    plt.ylabel('Count rate [#/day]')
-    plt.grid()
-    plt.legend()
-    plt.show()
 
 def skewed_gaussian_model(method):
     df = read_normalized_rates(method)
@@ -474,8 +607,8 @@ def group_by_6_months(date):
 
 
 
-def eyeball_standardization():
-    standardizing()
+def eyeball_standardization_old():
+ 
     method = 'nonroll'
     df = read_normalized_rates(method)
     print(df)
@@ -565,7 +698,7 @@ def eyeball_standardization():
 def eyeball():
     method = 'nonroll'
     df = read_normalized_rates(method)
-    print(df)
+    
     upper_threshold = 2.177
     thresholdcolor = '#984ea3'#'#e41a1c'
     lower_threshold = -3#-1.324
@@ -652,25 +785,6 @@ def process_sidc_ssn(): # returns sunspot dataframe
     df_sun = df_sun[['date', 'daily_sunspotnumber']]
     return df_sun
 
-
-def standardizing():
-    method = 'nonroll'
-    df = read_normalized_rates(method)
-    data_mean = df['daily_rate'].mean()
-    data_std_dev = df['daily_rate'].std()
- 
-    print("mean, std_dev: ", data_mean, data_std_dev)
-    df['standardized_rate'] = (df['daily_rate']-df['gcr_component'])#/data_std_dev
-    plt.figure()
-    plt.plot(df['date'],df['daily_rate'],label='Count rate')
-    plt.plot(df['date'],df['standardized_rate'],color='#4daf4a', label='Standardized')
-    plt.legend()
-    plt.xlabel('Date')
-    plt.ylabel('EDAC count rate [#/day]')
-    plt.show()
-    filename = 'normalized_edac_nonroll.txt'
-    df.to_csv(path + filename, sep='\t', index=False) # Save to file
-    print("standardized df: ", df)
 def fit_distribution_to_sine_rates():
 
     timewindow_start = pd.to_datetime("2017-09-01")
@@ -805,21 +919,20 @@ def process_new_raw_edac(method): # Creates .txt files based on the raw EDAC. Do
     if method == 'roll':
         create_rate_df(raw_window) # Creates daily rates based on resampled EDAC.
         create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
-    create_normalized_rates(method)
+    #create_normalized_rates(method)
   
 def main():
     method='nonroll'
     #process_new_raw_edac(method)
-
+    #create_detrended_rates(method)
+    #create_standardized_rates(method)
     #show_timerange(pd.to_datetime('2013-03-31 23:59:00'), pd.to_datetime('2013-04-23 00:00:00'), patched_edac_filename, method)
-    #skewed_gaussian_model(method)
-    #savitzky_fit(method)
+    
     plot_rates_all(method)
     #create_normalized_rates(method)
     #plot_histogram_rates(method)
    
- 
-    #standardizing()
+    #create_standardized_rates(method)
     #eyeball_standardization()
     #eyeball()
 
