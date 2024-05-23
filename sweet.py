@@ -65,7 +65,6 @@ def create_resampled_edac(zerosetcorrected_df,method): # Resamples the zero set 
         print('Time taken to resample to daily frequency, calculate daily rate and create files: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
 
 def read_resampled_df(method): # Retrieves the resampled and zeroset corrected edac
-
     path='files/'
     if method =='roll':
         filename = 'resampled_corrected_edac_roll.txt'
@@ -89,8 +88,7 @@ def create_rate_df(days_window): # rolling window method
 
     df['edac_diff'] = df['endwindow_edac'] - df['startwindow_edac']
     df['daily_rate'] = df['edac_diff'] / days_window
-
-    new_df = df[['date', 'daily_rate']] # Remove all columns except for the date and the daily rate
+    new_df = df[['date','edac', 'daily_rate']] # Remove all columns except for the date and the daily rate
     new_df = new_df[new_df['daily_rate'].notna()] # Remove rows without a daily rate
 
     new_df.to_csv(path + str(days_window)+ '_daily_rate.txt', sep='\t', index=False) # Save to file    
@@ -167,7 +165,7 @@ def create_detrended_rates(method):
         rate_df = read_rate_df(raw_window)
     else:
         rate_df = read_resampled_df(method)
-
+    
     first_rate = rate_df['date'].iloc[0]
     last_rate = rate_df['date'].iloc[-1]
     if first_gcr >= first_rate:
@@ -189,11 +187,12 @@ def create_detrended_rates(method):
     detrended_df['gcr_component'] = gcr_component['fit']
     
     ### Detrending by subtraction
-    detrended_df['detrended_rate'] = detrended_df['daily_rate']-detrended_df['gcr_component']
-    print("detrended_df: ", detrended_df)
+    if detrend=='subtraction':
+        detrended_df['detrended_rate'] = detrended_df['daily_rate']-detrended_df['gcr_component']
 
-    ### Detrending by division
-    #detrended_df['detrended_rate'] = detrended_df['daily_rate']/detrended_df['gcr_component']
+    ##Detrending by division
+    if detrend=='division':
+        detrended_df['detrended_rate'] = detrended_df['daily_rate']/detrended_df['gcr_component']
     
     start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
     suncolor = 'red' #'#4daf4a'
@@ -231,9 +230,9 @@ def create_detrended_rates(method):
     #plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
     plt.show()
     if method == 'roll':
-        filename = 'detrended_edac_roll.txt'
+        filename = 'detrended_edac_roll_' + str(detrend)+'.txt'
     else:
-        filename = 'detrended_edac_nonroll.txt'
+        filename = 'detrended_edac_nonroll_' + str(detrend) +'.txt'
     detrended_df.to_csv(path + filename, sep='\t', index=False) # Save to file
     print("File ", filename, " created")
 
@@ -241,9 +240,11 @@ def create_standardized_rates(method):
     detrended_df = read_detrended_rates(method)
     detrended_mean = detrended_df['detrended_rate'].mean()
     detrended_std = detrended_df['detrended_rate'].std()
+
+    subset_std = detrended_df.loc[0:2, 'detrended_rate'].std(
+    )
+
     detrended_df['standardized_rate'] = (detrended_df['detrended_rate']-detrended_mean)/detrended_std
-    print(detrended_df)
-    print("Mean, std: ", detrended_mean, detrended_std)
 
     start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
     suncolor = 'red' #'#4daf4a'
@@ -274,15 +275,13 @@ def create_standardized_rates(method):
 
     plt.tight_layout(pad=1.0)
     #plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
-    plt.show()
+    #plt.show()
     if method == 'roll':
         filename = 'standardized_edac_roll.txt'
     else:
         filename = 'standardized_edac_nonroll.txt'
     detrended_df.to_csv(path + filename, sep='\t', index=False) # Save to file
     print("File ", filename, " created")
-
-
 
 def create_normalized_rates(method): # Calculate normalized EDAC rate and save to .txt file, roll
     start_time = time.time()
@@ -296,7 +295,7 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
         rate_df = read_rate_df(raw_window)
     else:
         rate_df = read_resampled_df(method)
-
+    print("rate_df: ", rate_df)
     first_rate = rate_df['date'].iloc[0]
     last_rate = rate_df['date'].iloc[-1]
     if first_gcr >= first_rate:
@@ -317,14 +316,13 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
 
     normalized_df['gcr_component'] = gcr_component['fit']
     ## DIVISION
-    #normalized_df['normalized_rate'] = normalized_df['daily_rate']/normalized_df['gcr_component']
+    normalized_df['normalized_rate'] = normalized_df['daily_rate']/normalized_df['gcr_component']
     ## SUBTRACTION
     std_dev = normalized_df['daily_rate'].std()
     #print("std_dev: ", std_dev)
     #normalized_df['normalized_rate'] = (normalized_df['daily_rate']-normalized_df['gcr_component'])/std_dev
-    normalized_df['normalized_rate'] = normalized_df['daily_rate']-normalized_df['gcr_component']
-    print("normalized_df: ", normalized_df)
-    print("detrended mean: ", normalized_df['normalized_rate'].mean())
+    #normalized_df['normalized_rate'] = normalized_df['daily_rate']-normalized_df['gcr_component']
+    #print("detrended mean: ", normalized_df['normalized_rate'].mean())
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(10,6))
     
     ax1.plot(normalized_df['date'],normalized_df['daily_rate'], label='EDAC daily rate')
@@ -333,7 +331,7 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
     
     ax1.set_ylim([-0.5, 18])
     #ax2.set_ylim([-0.5, 18])
-    plt.suptitle('Normalization by subtraction', fontsize=16)
+    plt.suptitle('De-trending by division', fontsize=16)
     ax2.set_xlabel('Date', fontsize = 12)
     ax1.set_ylabel('EDAC daily rate', fontsize = 12)
     ax2.set_ylabel('EDAC normalized daily rate', fontsize = 12)
@@ -354,6 +352,10 @@ def create_normalized_rates(method): # Calculate normalized EDAC rate and save t
 
 def savitzky_fit_gcr(method):
     rate_df = read_resampled_df(method)
+    if method == 'roll':
+        rate_df = read_rate_df(smooth_window)
+    else:   
+        rate_df = read_resampled_df(method)
     #rate_df = rate_df[rate_df['daily_rate'] > 0] # Remove zero days
     savgolwindow=500
     polyorder=2
@@ -408,9 +410,9 @@ def read_normalized_rates(method):
 
 def read_detrended_rates(method):
     if method == 'roll':
-        df = pd.read_csv(path + 'detrended_edac_roll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+        df = pd.read_csv(path + 'detrended_edac_roll_' +str(detrend)+'.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     else:
-        df = pd.read_csv(path + 'detrended_edac_nonroll.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+        df = pd.read_csv(path + 'detrended_edac_nonroll_'+str(detrend) +'.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     return df
 
 def read_standardized_rates(method):
@@ -435,20 +437,14 @@ def show_timerange(startdate, enddate, raw_edac_file, method):
     filtered_raw = raw_edac.copy()
     filtered_raw =  filtered_raw[(filtered_raw['datetime'] > startdate) & (filtered_raw['datetime'] < enddate)]
     
-    zeroset_edac = read_zero_set_correct()
-    filtered_zeroset = zeroset_edac.copy()
-    filtered_zeroset = filtered_zeroset[(filtered_zeroset['datetime'] > startdate) & (filtered_zeroset['datetime'] < enddate)]
+    #zeroset_edac = read_zero_set_correct()
+    #filtered_zeroset = zeroset_edac.copy()
+    #filtered_zeroset = filtered_zeroset[(filtered_zeroset['datetime'] > startdate) & (filtered_zeroset['datetime'] < enddate)]
+    
+    #df = read_detrended_rates(method) # If DIVISION method
+    df= read_standardized_rates(method) # If SUBTRACTION method
 
-    normalized_rate = read_normalized_rates(method)
-    
-    normalized_rate =  normalized_rate[(normalized_rate['date'] > startdate) & (normalized_rate['date'] < enddate)]
-    print("normalized_rate: ", normalized_rate)
-    if method =='roll':
-     rate_df = read_rate_df(raw_window) ## assuming that create_rate_df(days_window) has been run already
-    else:
-        rate_df = read_resampled_df(method)
-    
-    filtered_rate =  rate_df[(rate_df['date'] > startdate) & (rate_df['date'] < enddate)]
+    df =  df[(df['date'] > startdate) & (df['date'] < enddate)]
     edac_change = filtered_raw.drop_duplicates(subset='edac', keep='first', inplace=False) # Datetimes where the EDAC is increasing
 
     startdate_string= str(startdate).replace(" ", "_")
@@ -457,17 +453,24 @@ def show_timerange(startdate, enddate, raw_edac_file, method):
     enddate_string = enddate_string.replace(":", "")
     filtered_raw.loc[:, 'time_difference'] = filtered_raw['datetime'].diff().fillna(pd.Timedelta(seconds=0))
     filtered_raw.to_csv(path + 'events/rawEDAC_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False) # Save selected raw EDAC to file
-    filtered_rate.to_csv(path + 'events/EDACrate_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)  # Save selected EDAc rate to file
+    df.to_csv(path + 'events/EDACrate_'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)  # Save selected EDAc rate to file
     edac_change.to_csv(path + 'events/EDACchange'+startdate_string + '-' + enddate_string + '.txt', sep='\t', index=False)
     
+
     fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,7))
     ax1.scatter(filtered_raw['datetime'],filtered_raw['edac'], label='Raw EDAC', s=3)
-    ax2.plot(filtered_rate['date'], filtered_rate['daily_rate'], marker='o', label ='EDAC count rate')
-    ax3.plot(normalized_rate['date'],normalized_rate['normalized_rate'],marker='o', label='Normalized EDAC count rate')
+    ax2.plot(df['date'], df['daily_rate'], marker='o', label ='EDAC count rate')
+    ## If DIVISION method
+    #ax3.plot(df['date'],df['detrended_rate'], marker='o',color='#4daf4a', label='De-trended rate')
+    ## If SUBTRACTION method
+    ax3.plot(df['date'],df['detrended_rate'], marker='o', label='De-trended rate')
+    ax3.plot(df['date'],df['standardized_rate'],marker='o', color='#4daf4a', label='Standardized EDAC count rate')
+    
     ax3.set_xlabel('Date', fontsize = 12)
     ax1.set_ylabel('EDAC count', fontsize = 12)
     ax2.set_ylabel('EDAC count rate', fontsize = 12)
-    ax3.set_ylabel('EDAC normalized count rate', fontsize=12)
+    #ax3.set_ylabel('EDAC standardized count rate', fontsize=12)
+    ax3.set_ylabel('De-trended count rate', fontsize=12)
     ax3.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
     ax1.grid()
     ax2.grid()
@@ -475,6 +478,7 @@ def show_timerange(startdate, enddate, raw_edac_file, method):
     ax1.legend()
     ax2.legend()
     ax3.legend()
+    fig.suptitle("De-trending by subtraction", fontsize=16)
     #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
     plt.tight_layout(pad=2.0)
     plt.savefig(path+'events/edac_'+startdate_string + '-' + enddate_string + '.png', dpi=300, transparent=False)
@@ -558,12 +562,15 @@ def skewed_gaussian_model(method):
     plt.show()
 
 def plot_histogram_rates(method):
-    df = read_normalized_rates(method)
-    print("df: ", df)
+
+    #df = read_detrended_rates(method) ## If division method
+    df = read_standardized_rates(method) ### If subtraction method
+
     #df = df[df['date'] < pd.to_datetime('2022-05-01')]
-    data = df['normalized_rate']
-    #data = df['standardized_rate']
-    binsize = 0.7
+
+    #data=df['detrended_rate'] # If DIVISION method
+    data = df['standardized_rate'] # If subtraction method
+    binsize = 0.3
     max_rate = np.max(data)
     min_rate = np.min(data)
     bins = np.arange(min_rate, max_rate+binsize, binsize) # Choose the size of the bins
@@ -573,8 +580,8 @@ def plot_histogram_rates(method):
     #print("bin_edges: ", bin_edges)
     plt.figure()
     plt.hist(data, bins=bin_edges, color='#4daf4a',edgecolor='black')
-    plt.title('Normalized rate distribution')
-    plt.xlabel('Count rate')
+    plt.title('Standardized rate distribution')
+    plt.xlabel('Standardized count rate')
     plt.ylabel('Occurrences')
     plt.show()
 
@@ -607,17 +614,17 @@ def group_by_6_months(date):
 
 
 
-def eyeball_standardization_old():
+def eyeball_standardization():
  
     method = 'nonroll'
-    df = read_normalized_rates(method)
+    df = read_standardized_rates(method)
     print(df)
     data_mean = df['standardized_rate'].mean()
     data_std_dev = df['standardized_rate'].std()
     print(data_mean, data_std_dev)
-    upper_threshold = data_mean+2*data_std_dev
+    upper_threshold = 2#data_mean+2*data_std_dev
     thresholdcolor = '#984ea3'#'#e41a1c'
-    lower_threshold = data_mean-1*data_std_dev
+    lower_threshold = -3 #data_mean-1*data_std_dev
     start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
     suncolor = 'red' #'#4daf4a'
     df_sun = process_sidc_ssn()
@@ -635,7 +642,7 @@ def eyeball_standardization_old():
              color='#4daf4a',
              label='Standardized count rate')
     ax2.axhline(upper_threshold, color= thresholdcolor, label='Threshold: ' + str(upper_threshold))
-    #ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
+    ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
     ax3.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('Count rate [#/day]', fontsize = 10)
     ax2.set_ylabel('Standardized count rate [#/day]', fontsize = 10)
@@ -656,7 +663,7 @@ def eyeball_standardization_old():
 
     spike_df = df.copy()
     spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold) | (spike_df['standardized_rate'] <= lower_threshold)]
-    spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold)]
+    #spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold)]
     troughs= spike_df[spike_df['standardized_rate'] <= lower_threshold]
     peaks = spike_df[spike_df['standardized_rate']>= upper_threshold]
     print("troughs: ", troughs)
@@ -668,7 +675,6 @@ def eyeball_standardization_old():
     grouped_df = spike_df.groupby('6_month_group').size().reset_index()
     grouped_df.columns=['datebin','counts']
     grouped_df['datebin'] = grouped_df['datebin'] + pd.DateOffset(months=3)
-    print(grouped_df)
     stormy_total = grouped_df['counts'].sum()
 
     print("Number of stormy days: ", stormy_total)
@@ -887,8 +893,6 @@ import statsmodels.api as sm
 def try_statsmodels():
     method = 'nonroll'
     df = read_normalized_rates(method)
-
-
     # Assuming your data has a column named 'value' containing the time series values
     ts_values = df['daily_rate']
 
@@ -911,28 +915,35 @@ patched_edac_filename = 'raw_edac/patched_mex_edac.txt'
 raw_window = 5 # The time bin for calculating the rate for the EDAC curve to be normalized
 smooth_window = 11 # The time bin for calculating the rate for the curve that is to be smoothed
 
+detrend='subtraction'
 def process_new_raw_edac(method): # Creates .txt files based on the raw EDAC. Do only once
-    print("Method is: ", method)
     create_zero_set_correct(path+patched_edac_filename) # Create zeroset corrected EDAC file, needs to be done only once.
     zerosetcorrected_df = read_zero_set_correct() # Read the zeroset corrected file
     create_resampled_edac(zerosetcorrected_df, method) # Resample to a daily frequency. Needs to be done only once.
     if method == 'roll':
         create_rate_df(raw_window) # Creates daily rates based on resampled EDAC.
         create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
-    #create_normalized_rates(method)
-  
+
+
+
+
 def main():
     method='nonroll'
-    #process_new_raw_edac(method)
-    #create_detrended_rates(method)
-    #create_standardized_rates(method)
-    #show_timerange(pd.to_datetime('2013-03-31 23:59:00'), pd.to_datetime('2013-04-23 00:00:00'), patched_edac_filename, method)
     
-    plot_rates_all(method)
+    #process_new_raw_edac(method)
+  
+    #create_detrended_rates(method)  # Need to adjust division/subtraction here
+    #create_standardized_rates(method) ## If subtraction method
+    
+    date = pd.to_datetime('2005-03-19 00:00:00')
+    startdate =  date-pd.Timedelta(days=21)
+    enddate = date+pd.Timedelta(days=21)
+    #show_timerange(startdate, enddate, patched_edac_filename, method) # Need to adjust plotting methods here
+    eyeball_standardization()
+    #plot_rates_all(method)
     #create_normalized_rates(method)
-    #plot_histogram_rates(method)
+    #plot_histogram_rates(method) ### Need to adjust division/subtraction here
    
-    #create_standardized_rates(method)
     #eyeball_standardization()
     #eyeball()
 
@@ -943,5 +954,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
