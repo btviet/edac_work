@@ -609,23 +609,15 @@ def fit_skewnorm(method):
     plt.plot(x, p, 'k', linewidth=2)
     plt.show()
 
-def group_by_6_months(date):
-    return pd.Timestamp(date.year, ((date.month-1)//6)*6 + 1, 1)
-
-
-
 def eyeball_standardization():
- 
+    raw_edac = read_rawedac(path+patched_edac_filename)
     method = 'nonroll'
     df = read_standardized_rates(method)
-    print(df)
     data_mean = df['standardized_rate'].mean()
     data_std_dev = df['standardized_rate'].std()
-    print(data_mean, data_std_dev)
-    upper_threshold = 2#data_mean+2*data_std_dev
+    upper_threshold = 2 #data_mean+2*data_std_dev
     thresholdcolor = '#984ea3'#'#e41a1c'
-    lower_threshold = -3 #data_mean-1*data_std_dev
-    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")    
     suncolor = 'red' #'#4daf4a'
     df_sun = process_sidc_ssn()
     index_exact =  np.where((df_sun['date']==start_date))[0][0]
@@ -642,7 +634,7 @@ def eyeball_standardization():
              color='#4daf4a',
              label='Standardized count rate')
     ax2.axhline(upper_threshold, color= thresholdcolor, label='Threshold: ' + str(upper_threshold))
-    ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
+    #ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
     ax3.set_xlabel('Date', fontsize = 10)
     ax1.set_ylabel('Count rate [#/day]', fontsize = 10)
     ax2.set_ylabel('Standardized count rate [#/day]', fontsize = 10)
@@ -661,109 +653,121 @@ def eyeball_standardization():
     #plt.show()
 
 
-    spike_df = df.copy()
-    spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold) | (spike_df['standardized_rate'] <= lower_threshold)]
-    #spike_df = spike_df[(spike_df['standardized_rate'] >= upper_threshold)]
-    troughs= spike_df[spike_df['standardized_rate'] <= lower_threshold]
-    peaks = spike_df[spike_df['standardized_rate']>= upper_threshold]
-    print("troughs: ", troughs)
-    print("peaks: ", peaks)
-    spike_df.reset_index(inplace=True)
-    #print("spike_df: ", spike_df)
+    #df.to_csv(path + 'maindataframe.txt', sep='\t', index=False) # Save to file
+    spike_df=df.copy()
+    peaks = spike_df[(spike_df['standardized_rate'] >= upper_threshold)]
     
-    spike_df['6_month_group'] = spike_df['date'].apply(group_by_6_months)
-    grouped_df = spike_df.groupby('6_month_group').size().reset_index()
-    grouped_df.columns=['datebin','counts']
-    grouped_df['datebin'] = grouped_df['datebin'] + pd.DateOffset(months=3)
-    stormy_total = grouped_df['counts'].sum()
+    spike_df['is_zero'] = spike_df['daily_rate'] == 0
+    shifted_values =spike_df['is_zero'].shift(1, fill_value=False)
+    group = (spike_df['is_zero'] & ~shifted_values).cumsum()
+    true_groups = spike_df[spike_df['is_zero']].groupby(group)
+    result_df = true_groups.agg(start_index=('is_zero', 'idxmin'), consecutive_true_count=('is_zero', 'size')).reset_index(drop=True)
 
-    print("Number of stormy days: ", stormy_total)
-    spike_df.to_csv(path + 'datesoutsidethreshold.txt', sep='\t', index=False) # Save to file   
-    fig, ax1 = plt.subplots(figsize=(10,6))
-    spikecolor = '#377eb8'
-    suncolor = '#a65628'
-    ax1.plot(grouped_df['datebin'],grouped_df['counts'],
-             marker='o',color=spikecolor,
-             label='Number of days outside thresholds')
-    ax2=ax1.twinx()
-    #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
-    ax2.plot(df_sun['date'], sunspots_smoothed,
-             linewidth=1,color=suncolor,
-             label='Smoothed sunspots')
-    sun_limit = max(sunspots_smoothed)+10
-    ax2.set_ylim([0, max(sunspots_smoothed+10)])
-    ax1.set_xlabel('Date', fontsize = 10)
-    ax1.set_ylabel('Number of stormy days', fontsize = 10)
-    ax2.set_ylabel('Sunspot number')
-    ax1.tick_params(axis="y", labelcolor=spikecolor)
-    ax2.tick_params(axis="y", labelcolor=suncolor)
-    ax1.legend(loc='upper left')
-    ax2.legend(loc='upper right')
-    plt.title('Sunspot number and number of stormy days in 6 month bins')
-    plt.show()
-def eyeball():
-    method = 'nonroll'
-    df = read_normalized_rates(method)
+    zero_start_dates = spike_df['date'].loc[result_df['start_index']]
+    zero_start_dates.reset_index(drop=True)
+    forbush_df = pd.DataFrame(zero_start_dates, columns=['date'])
+    forbush_df.reset_index(inplace=True)
+    forbush_df.drop(columns=['index'], inplace=True)
+    duration = result_df['consecutive_true_count']
+    forbush_df['duration']=duration
+
+    min_duration = 3
+    forbush_df = forbush_df[forbush_df['duration'] >= min_duration]
     
-    upper_threshold = 2.177
-    thresholdcolor = '#984ea3'#'#e41a1c'
-    lower_threshold = -3#-1.324
-    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")
-    suncolor = 'red' #'#4daf4a'
+    forbush_dates = pd.DataFrame(forbush_df['date'], columns=['date'])
+    forbush_dates['type'] = 'Forbush'
+    sep_dates = pd.DataFrame(peaks['date'],columns=['date'])
+    sep_dates['type'] = 'SEP'
+    spike_df = pd.concat([sep_dates, forbush_dates], ignore_index=True)
+    spike_df = spike_df.sort_values(by='date')
+    spike_df.to_csv(path + 'stormy_dates.txt', sep='\t', index=False) # Save to file
+    print("stormy_dates.txt created")
+'''
+    date_list = trough_df['date'].tolist()
+    count=1
+    for date in date_list:
+        print("Date: ", date)
+        startdate =  date-pd.Timedelta(days=21)
+        enddate = date+pd.Timedelta(days=21)
+        print(startdate, enddate)
+        date_string = str(date.date()).replace(" ", "_")
+        temp_raw = raw_edac.copy()
+        temp_raw = temp_raw[(temp_raw['datetime'] > startdate) & (temp_raw['datetime'] < enddate)]
+        temp_2024 = df.copy()
+        temp_2024 =  temp_2024[(temp_2024['date'] > startdate) & (temp_2024['date'] < enddate)]
+        fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(8,6))
+        ax1.scatter(temp_raw['datetime'],temp_raw['edac'], label='Raw EDAC', s=3)
+        ax2.plot(temp_2024['date'], temp_2024['daily_rate'], marker='o', label ='EDAC count rate')
+    
+        ax3.plot(temp_2024['date'],temp_2024['detrended_rate'], marker='o', label='De-trended rate')
+        ax3.plot(temp_2024['date'],temp_2024['standardized_rate'],marker='o', color='#4daf4a', label='Standardized EDAC count rate')
+        
+        ax3.set_xlabel('Date', fontsize = 12)
+        ax1.set_ylabel('EDAC count', fontsize = 12)
+        ax2.set_ylabel('EDAC count rate', fontsize = 12)
+        ax3.set_ylabel('De-trended count rate', fontsize=12)
+        ax3.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+        ax1.grid()
+        ax2.grid()
+        ax3.grid()
+        ax1.legend()
+        ax2.legend()
+        ax3.legend()
+        #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+        fig.suptitle("New method: " + str(date.date()), fontsize=16)
+        #plt.tight_layout(pad=2.0)
+        plt.savefig(path+'forbush/'+str(count)+'_' + date_string +'_ny.png', dpi=300, transparent=False)
+        #plt.show()
+        plt.close()
+        count += 1
+    '''
+    
+def read_stormy_dates():
+    df = pd.read_csv(path+'stormy_dates.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    return df
+
+def plot_stormy_days_bin():
+    def group_by_6_months(date):
+        return pd.Timestamp(date.year, ((date.month-1)//6)*6 + 1, 1)
+    spike_df = read_stormy_dates()
+    sep_df = spike_df[spike_df['type']=='SEP']
+    forbush_df = spike_df[spike_df['type']=='Forbush']
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")    
     df_sun = process_sidc_ssn()
     index_exact =  np.where((df_sun['date']==start_date))[0][0]
     df_sun = df_sun.iloc[index_exact:]
     savgolwindow_sunspots = 601
     sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
 
-    fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(10,8))
-    
-    ax1.plot(df['date'], df['daily_rate'], label='EDAC count rate')
-    ax1.plot(df['date'],df['gcr_component'], label='Savitzky-Golay fit')
-    ax2.plot(df['date'], df['normalized_rate'], 
-             color='#4daf4a',
-             label='Normalized count rate')
-    ax2.axhline(upper_threshold, color= thresholdcolor, label='Threshold: ' + str(upper_threshold))
-    ax2.axhline(lower_threshold, color= thresholdcolor, label='Threshold: ' + str(lower_threshold))
-    ax3.set_xlabel('Date', fontsize = 10)
-    ax1.set_ylabel('Count rate [#/day]', fontsize = 10)
-    ax2.set_ylabel('Standardized count rate [#/day]', fontsize = 10)
-    ax3.plot(df_sun['date'],df_sun['daily_sunspotnumber'], color='#f781bf',label="Number of sunspots")
-    ax3.plot(df_sun['date'], sunspots_smoothed,
-             linewidth=1,
-             color='#a65628',
-             label='Smoothed sunspots')
-    ax3.set_ylabel('Sunspot number')
-    ax1.grid()
-    ax2.grid()
-    ax3.grid()
-    ax1.legend()
-    ax2.legend()
-    ax3.legend()
-    #plt.show()
-
-
-    spike_df = df.copy()
-    
-    spike_df = spike_df[(spike_df['normalized_rate'] >= upper_threshold) | (spike_df['normalized_rate'] <= lower_threshold)]
-    spike_df.reset_index(inplace=True)
- 
-    
     spike_df['6_month_group'] = spike_df['date'].apply(group_by_6_months)
+    sep_df['6_month_group'] = sep_df['date'].apply(group_by_6_months)
+    forbush_df['6_month_group'] = forbush_df['date'].apply(group_by_6_months)
+
     grouped_df = spike_df.groupby('6_month_group').size().reset_index()
+    grouped_sep =sep_df.groupby('6_month_group').size().reset_index()
+    grouped_fd = forbush_df.groupby('6_month_group').size().reset_index()
+
     grouped_df.columns=['datebin','counts']
+    grouped_sep.columns=['datebin', 'counts']
+    grouped_fd.columns=['datebin','counts']
     grouped_df['datebin'] = grouped_df['datebin'] + pd.DateOffset(months=3)
-    print(grouped_df)
+    grouped_sep['datebin'] = grouped_sep['datebin'] + pd.DateOffset(months=3)
+    grouped_fd['datebin'] =grouped_fd['datebin'] + pd.DateOffset(months=3)
     stormy_total = grouped_df['counts'].sum()
+    sep_total= grouped_sep['counts'].sum()
+    fd_total = grouped_fd['counts'].sum()
 
     print("Number of stormy days: ", stormy_total)
-    spike_df.to_csv(path + 'datesoutsidethreshold.txt', sep='\t', index=False) # Save to file   
+    #spike_df.to_csv(path + 'datesoutsidethreshold.txt', sep='\t', index=False) # Save to file   
     fig, ax1 = plt.subplots(figsize=(10,6))
     spikecolor = '#377eb8'
     suncolor = '#a65628'
+    sepcolor = '#ff7f00'
     ax1.plot(grouped_df['datebin'],grouped_df['counts'],
              marker='o',color=spikecolor,
-             label='Number of days outside thresholds')
+             label='Total number of events')
+    #ax1.plot(grouped_sep['datebin'],grouped_sep['counts'], marker='o', color=sepcolor,label='SEP',linewidth=0.5,alpha=0.5)
+    #ax1.plot(grouped_fd['datebin'],grouped_fd['counts'],marker='o', color=fdcolor, label='FD',linewidth=0.5, alpha=0.5)
     ax2=ax1.twinx()
     #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
     ax2.plot(df_sun['date'], sunspots_smoothed,
@@ -780,6 +784,58 @@ def eyeball():
     ax2.legend(loc='upper right')
     plt.title('Sunspot number and number of stormy days in 6 month bins')
     plt.show()
+
+
+    fig, ax1 = plt.subplots(figsize=(10,6))
+
+    suncolor = '#a65628'
+    sepcolor = '#ff7f00'
+
+
+    ax1.plot(grouped_sep['datebin'],grouped_sep['counts'], marker='o', color=sepcolor,label='SEP',linewidth=1,alpha=1)
+    #ax1.plot(grouped_fd['datebin'],grouped_fd['counts'],marker='o', color=fdcolor, label='FD',linewidth=0.5, alpha=0.5)
+    ax2=ax1.twinx()
+    #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,color=suncolor,
+             label='Smoothed sunspots')
+    sun_limit = max(sunspots_smoothed)+10
+    ax2.set_ylim([0, max(sunspots_smoothed+10)])
+    ax1.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Number of SEP events', fontsize = 10)
+    ax2.set_ylabel('Sunspot number')
+    ax1.tick_params(axis="y", labelcolor=spikecolor)
+    ax2.tick_params(axis="y", labelcolor=suncolor)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.title('Sunspot number and number of SEPs in 6 month bins')
+    plt.show()
+
+    fig, ax1 = plt.subplots(figsize=(10,6))
+
+    suncolor = '#a65628'
+    fdcolor ='#984ea3'
+
+
+    #ax1.plot(grouped_sep['datebin'],grouped_sep['counts'], marker='o', color=sepcolor,label='SEP',linewidth=1,alpha=1)
+    ax1.plot(grouped_fd['datebin'],grouped_fd['counts'],marker='o', color=fdcolor, label='FD',linewidth=1, alpha=1)
+    ax2=ax1.twinx()
+    #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,color=suncolor,
+             label='Smoothed sunspots')
+    sun_limit = max(sunspots_smoothed)+10
+    ax2.set_ylim([0, max(sunspots_smoothed+10)])
+    ax1.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Number of Forbush decreases', fontsize = 10)
+    ax2.set_ylabel('Sunspot number')
+    ax1.tick_params(axis="y", labelcolor=spikecolor)
+    ax2.tick_params(axis="y", labelcolor=suncolor)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.title('Sunspot number and number of FDs in 6 month bins')
+    plt.show()
+
 
 
 def process_sidc_ssn(): # returns sunspot dataframe
@@ -855,7 +911,7 @@ def fit_distribution_to_sine_rates():
     plt.show()
 
 def investigate_spikes(raw_edac_file):
-    df_dates = pd.read_csv(path + 'datesoutsidethreshold.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    df_dates = read_stormy_dates() #pd.read_csv(path + 'datesoutsidethreshold.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     raw_edac = read_rawedac(path+raw_edac_file)
     df = read_standardized_rates("nonroll")
     date_list = df_dates['date'].tolist()
@@ -877,8 +933,8 @@ def investigate_spikes(raw_edac_file):
     
         ax3.plot(temp_2024['date'],temp_2024['detrended_rate'], marker='o', label='De-trended rate')
         ax3.plot(temp_2024['date'],temp_2024['standardized_rate'],marker='o', color='#4daf4a', label='Standardized EDAC count rate')
-        
-        ax3.set_xlabel('Date', fontsize = 12)
+        ax3.axvline(x=date,color='black',linewidth='1',label=date)
+        ax3.set_xlabel('Date', fontsize = 12),
         ax1.set_ylabel('EDAC count', fontsize = 12)
         ax2.set_ylabel('EDAC count rate', fontsize = 12)
         ax3.set_ylabel('De-trended count rate', fontsize=12)
@@ -888,7 +944,7 @@ def investigate_spikes(raw_edac_file):
         ax3.grid()
         ax1.legend()
         ax2.legend()
-        ax3.legend()
+        #ax3.legend()
         #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
         fig.suptitle("New method: " + str(date.date()), fontsize=16)
         #plt.tight_layout(pad=2.0)
@@ -926,8 +982,10 @@ def main():
     date = pd.to_datetime('2005-03-19 00:00:00')
     startdate =  date-pd.Timedelta(days=21)
     enddate = date+pd.Timedelta(days=21)
+    
     #show_timerange(startdate, enddate, patched_edac_filename, method) # Need to adjust plotting methods here
     #eyeball_standardization()
+    #plot_stormy_days_bin()
     #plot_rates_all(method)
     #create_normalized_rates(method)
     #plot_histogram_rates(method) ### Need to adjust division/subtraction here
