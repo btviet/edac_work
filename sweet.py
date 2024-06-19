@@ -517,6 +517,85 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
     plt.show()
 
 
+def zerodays():
+    df = read_resampled_df('nonroll')
+    zero_mask = (df['daily_rate'] == 0)
+    num_zeros=4
+    # Create a rolling sum to find consecutive zeros
+    consecutive_zeros = zero_mask.rolling(window=num_zeros).sum()
+    
+    # Find the rows where the specific column has the required number of consecutive zeros
+    rows_with_consecutive_zeros = consecutive_zeros == num_zeros
+    
+    # Identify the indices of the rows where the condition is met
+    rows_indices = rows_with_consecutive_zeros[rows_with_consecutive_zeros].index
+    
+    # Adjust indices to get the rows before the sequence of zeros starts
+    result_indices = rows_indices - (num_zeros - 1)
+    
+    # Filter out negative indices (if any)
+    result_indices = result_indices[result_indices >= 0]
+    
+    # Return the corresponding rows
+    zerodays_df = (df.iloc[result_indices])
+
+    zerodays_df.loc[:, 'time_difference'] = zerodays_df['date'].diff().fillna(pd.Timedelta(days=1.1))
+    filtered_df = zerodays_df[zerodays_df['time_difference'] > pd.Timedelta(days=1)]
+    print(filtered_df)
+  
+
+        
+    zerodays_df.to_csv(path + 'zerodays.txt', sep='\t', index=False) # Save to file 
+    filtered_df.to_csv(path + 'zerodays_filtered.txt', sep='\t', index=False) # Save to file 
+
+
+def read_forbush_dates():
+    df= pd.read_csv(path + 'zerodays_filtered.txt',skiprows=0, sep="\t",parse_dates = ['date'])
+    return df
+
+def investigate_fd():
+    df_dates = read_forbush_dates()
+    raw_edac = read_rawedac(path+patched_edac_filename)
+    df = read_standardized_rates("nonroll")
+    date_list = df_dates['date'].tolist()
+    print(date_list)
+    count=1
+    for date in date_list:
+        print("Date: ", date)
+        startdate =  date-pd.Timedelta(days=21)
+        enddate = date+pd.Timedelta(days=21)
+        print(startdate, enddate)
+        date_string = str(date.date()).replace(" ", "_")
+        temp_raw = raw_edac.copy()
+        temp_raw = temp_raw[(temp_raw['datetime'] > startdate) & (temp_raw['datetime'] < enddate)]
+        temp_2024 = df.copy()
+        temp_2024 =  temp_2024[(temp_2024['date'] > startdate) & (temp_2024['date'] < enddate)]
+        fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(8,6))
+        ax1.scatter(temp_raw['datetime'],temp_raw['edac'], label='Raw EDAC', s=3)
+        ax2.plot(temp_2024['date'], temp_2024['daily_rate'], marker='o', label ='EDAC count rate')
+    
+        ax3.plot(temp_2024['date'],temp_2024['detrended_rate'], marker='o', label='De-trended rate')
+        ax3.plot(temp_2024['date'],temp_2024['standardized_rate'],marker='o', color='#4daf4a', label='Standardized EDAC count rate')
+        ax3.axvline(x=date,color='black',linewidth='1',label=date)
+        ax3.set_xlabel('Date', fontsize = 12),
+        ax1.set_ylabel('EDAC count', fontsize = 12)
+        ax2.set_ylabel('EDAC count rate', fontsize = 12)
+        ax3.set_ylabel('De-trended count rate', fontsize=12)
+        ax3.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+        ax1.grid()
+        ax2.grid()
+        ax3.grid()
+        ax1.legend()
+        ax2.legend()
+        #ax3.legend()
+        #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+        fig.suptitle("New method: " + str(date.date()), fontsize=16)
+        #plt.tight_layout(pad=2.0)
+        plt.savefig(path+'forbush_new/'+str(count)+'_' + date_string +'_ny.png', dpi=300, transparent=False)
+        #plt.show()
+        plt.close()
+        count += 1
+
 def skewed_gaussian_model(method):
     df = read_normalized_rates(method)
     df = df[df['date'] < pd.to_datetime('2017-09-01')]
@@ -979,17 +1058,19 @@ def main():
     #create_detrended_rates(method)  # Need to adjust division/subtraction here
     #create_standardized_rates(method) ## If subtraction method
     
-    date = pd.to_datetime('2005-03-19 00:00:00')
+    date = pd.to_datetime('2014-09-12 00:00:00')
     startdate =  date-pd.Timedelta(days=21)
     enddate = date+pd.Timedelta(days=21)
-    
+    show_timerange(startdate, enddate, patched_edac_filename, method)
+    #zerodays()
+    ##investigate_fd()
     #show_timerange(startdate, enddate, patched_edac_filename, method) # Need to adjust plotting methods here
     #eyeball_standardization()
     #plot_stormy_days_bin()
     #plot_rates_all(method)
     #create_normalized_rates(method)
     #plot_histogram_rates(method) ### Need to adjust division/subtraction here
-    investigate_spikes(patched_edac_filename)
+    #investigate_spikes(patched_edac_filename)
     #eyeball_standardization()
     #eyeball()
 
