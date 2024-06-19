@@ -111,8 +111,7 @@ def combine_rawedac_2022_2024():
     '''
 
 
-process_rawedac_2022()
-combine_rawedac_2022_2024()
+
 
 def main():
     process_rawedac_2022()
