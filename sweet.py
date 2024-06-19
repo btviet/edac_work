@@ -13,7 +13,7 @@ def read_rawedac(raw_edac_path): # Reads the patched MEX EDAC
     df = pd.read_csv(raw_edac_path,skiprows=0, sep="\t",parse_dates = ['datetime'])
     return df
 
-def create_zero_set_correct(raw_edac_path): # Returns the zero-set corrected dataframe of the raw EDAC counter
+def create_zero_set_correct(raw_edac_path): # Create the zero-set corrected dataframe of the raw EDAC counter
     start_time = time.time()
     print("--------- Starting the zeroset correction ---------")
     df = read_rawedac(raw_edac_path)
@@ -29,7 +29,7 @@ def create_zero_set_correct(raw_edac_path): # Returns the zero-set corrected dat
     df.to_csv(path + 'zerosetcorrected_edac.txt', sep='\t', index=False) # Save to file    
     print("File  ", "zerosetcorrected_edac.txt created")
     print('Time taken to perform zero-set correction and create files: ', '{:.2f}'.format(time.time() - start_time) , "seconds")
-    return df 
+ 
 
 def read_zero_set_correct():
     df = pd.read_csv(
