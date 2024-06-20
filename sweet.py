@@ -520,26 +520,16 @@ def plot_rates_all(method): # Plots the EDAC count rate for the whole time perio
 def zerodays():
     df = read_resampled_df('nonroll')
     zero_mask = (df['daily_rate'] == 0)
-    num_zeros=4
-    # Create a rolling sum to find consecutive zeros
+    num_zeros=2
     consecutive_zeros = zero_mask.rolling(window=num_zeros).sum()
-    
-    # Find the rows where the specific column has the required number of consecutive zeros
     rows_with_consecutive_zeros = consecutive_zeros == num_zeros
-    
-    # Identify the indices of the rows where the condition is met
     rows_indices = rows_with_consecutive_zeros[rows_with_consecutive_zeros].index
-    
-    # Adjust indices to get the rows before the sequence of zeros starts
     result_indices = rows_indices - (num_zeros - 1)
-    
-    # Filter out negative indices (if any)
-    result_indices = result_indices[result_indices >= 0]
-    
+
     # Return the corresponding rows
     zerodays_df = (df.iloc[result_indices])
 
-    zerodays_df.loc[:, 'time_difference'] = zerodays_df['date'].diff().fillna(pd.Timedelta(days=1.1))
+    zerodays_df.loc[:, 'time_difference'] = zerodays_df['date'].diff().fillna(pd.Timedelta(days=1.1)) #
     filtered_df = zerodays_df[zerodays_df['time_difference'] > pd.Timedelta(days=1)]
     print(filtered_df)
   
@@ -553,6 +543,54 @@ def read_forbush_dates():
     df= pd.read_csv(path + 'zerodays_filtered.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     return df
 
+
+def group_zerodays():
+    df = read_forbush_dates()
+    print(df)
+    def group_by_6_months(date):
+        return pd.Timestamp(date.year, ((date.month-1)//6)*6 + 1, 1)
+
+    df['6_month_group'] = df['date'].apply(group_by_6_months)
+    grouped_df = df.groupby('6_month_group').size().reset_index()
+    grouped_df.columns=['datebin','counts']
+    grouped_df['datebin'] = grouped_df['datebin'] + pd.DateOffset(months=3)
+    stormy_total = grouped_df['counts'].sum()
+    print("number of forbush decreases: ", stormy_total)
+
+    start_date = datetime.strptime('2004-01-01',"%Y-%m-%d")    
+    df_sun = process_sidc_ssn()
+    index_exact =  np.where((df_sun['date']==start_date))[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    savgolwindow_sunspots = 601
+    sunspots_smoothed= savgol_filter(df_sun['daily_sunspotnumber'], savgolwindow_sunspots, 3)
+
+    fig, ax1 = plt.subplots(figsize=(10,6))
+    spikecolor = '#377eb8'
+    suncolor = '#a65628'
+    sepcolor = '#ff7f00'
+    ax1.plot(grouped_df['datebin'],grouped_df['counts'],
+             marker='o',color=spikecolor,
+             label='Total number of events')
+    #ax1.plot(grouped_sep['datebin'],grouped_sep['counts'], marker='o', color=sepcolor,label='SEP',linewidth=0.5,alpha=0.5)
+    #ax1.plot(grouped_fd['datebin'],grouped_fd['counts'],marker='o', color=fdcolor, label='FD',linewidth=0.5, alpha=0.5)
+    ax2=ax1.twinx()
+    #ax2.plot(df_sun['date'],df_sun['daily_sunspotnumber'], label="Number of sunspots")
+    ax2.plot(df_sun['date'], sunspots_smoothed,
+             linewidth=1,color=suncolor,
+             label='Smoothed sunspots')
+    sun_limit = max(sunspots_smoothed)+10
+    ax2.set_ylim([0, max(sunspots_smoothed+10)])
+    ax1.set_xlabel('Date', fontsize = 10)
+    ax1.set_ylabel('Number of stormy days', fontsize = 10)
+    ax2.set_ylabel('Sunspot number')
+    ax1.tick_params(axis="y", labelcolor=spikecolor)
+    ax2.tick_params(axis="y", labelcolor=suncolor)
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.title('Number of Forbush decreases and SSN in 6 month bins')
+    plt.show()
+
+
 def investigate_fd():
     df_dates = read_forbush_dates()
     raw_edac = read_rawedac(path+patched_edac_filename)
@@ -560,7 +598,7 @@ def investigate_fd():
     date_list = df_dates['date'].tolist()
     print(date_list)
     count=1
-    for date in date_list:
+    for date in date_list: # create plots
         print("Date: ", date)
         startdate =  date-pd.Timedelta(days=21)
         enddate = date+pd.Timedelta(days=21)
@@ -1061,8 +1099,9 @@ def main():
     date = pd.to_datetime('2014-09-12 00:00:00')
     startdate =  date-pd.Timedelta(days=21)
     enddate = date+pd.Timedelta(days=21)
-    show_timerange(startdate, enddate, patched_edac_filename, method)
-    #zerodays()
+    #show_timerange(startdate, enddate, patched_edac_filename, method)
+    zerodays()
+    group_zerodays()
     ##investigate_fd()
     #show_timerange(startdate, enddate, patched_edac_filename, method) # Need to adjust plotting methods here
     #eyeball_standardization()
