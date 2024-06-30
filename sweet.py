@@ -543,7 +543,6 @@ def read_forbush_dates():
     df= pd.read_csv(path + 'zerodays_filtered.txt',skiprows=0, sep="\t",parse_dates = ['date'])
     return df
 
-
 def group_zerodays():
     df = read_forbush_dates()
     print(df)
@@ -589,7 +588,6 @@ def group_zerodays():
     ax2.legend(loc='upper right')
     plt.title('Number of Forbush decreases and SSN in 6 month bins')
     plt.show()
-
 
 def investigate_fd():
     df_dates = read_forbush_dates()
@@ -1086,7 +1084,31 @@ def process_new_raw_edac(method): # Creates .txt files based on the raw EDAC. Do
         create_rate_df(smooth_window) # Creates daily rates based on resampled EDAC
 
 
+def read_cme_events() -> pd.DataFrame:
+    df= pd.read_csv(path+'cme_events.csv',skiprows=0, sep=",", parse_dates=["eruption_date"])
+    return df[["eruption_date"]]
 
+def generate_next_7_days(start_date):
+    return [start_date + timedelta(days=i) for i in range(1, 8)]
+
+def detect_cme_events():
+    stormy_df = read_stormy_dates()
+    
+    stormy_df['date'] = stormy_df['date'].dt.date
+    stormy_dates = stormy_df["date"].tolist()
+    cme_df = read_cme_events()
+    cme_df["eruption_date"] = cme_df["eruption_date"].dt.date
+    cme_dict = dict.fromkeys(cme_df['eruption_date'], [])
+    for event_date in cme_dict.keys():
+        cme_dict[event_date] = generate_next_7_days(event_date)
+    results = {}
+
+    for key, values in cme_dict.items():
+        # Check if any date in the list is present in the DataFrame column
+        match_found = any(date in stormy_df['date'].values for date in values)
+        results[key] = match_found
+    for key, value in results.items():
+        print(f"{key}: {value}")
 
 def main():
     method='nonroll'
@@ -1100,8 +1122,8 @@ def main():
     startdate =  date-pd.Timedelta(days=21)
     enddate = date+pd.Timedelta(days=21)
     #show_timerange(startdate, enddate, patched_edac_filename, method)
-    zerodays()
-    group_zerodays()
+    #zerodays()
+    #group_zerodays()
     ##investigate_fd()
     #show_timerange(startdate, enddate, patched_edac_filename, method) # Need to adjust plotting methods here
     #eyeball_standardization()
@@ -1117,5 +1139,5 @@ def main():
     print("End")
 
 if __name__ == "__main__":
-    main()
-
+    #main()
+    detect_cme_events()
