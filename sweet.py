@@ -1068,6 +1068,46 @@ def investigate_spikes(raw_edac_file):
         plt.close()
         count += 1
 
+
+def create_plots(date_list):
+    
+    raw_edac = read_rawedac(path+patched_edac_filename)
+    df = read_standardized_rates("nonroll")
+    count=1
+    for date in date_list:
+        print("Date: ", date)
+        startdate =  date-pd.Timedelta(days=21)
+        enddate = date+pd.Timedelta(days=21)
+        date_string = str(date.date()).replace(" ", "_")
+        temp_raw = raw_edac.copy()
+        temp_raw = temp_raw[(temp_raw['datetime'] > startdate) & (temp_raw['datetime'] < enddate)]
+        temp_2024 = df.copy()
+        temp_2024 =  temp_2024[(temp_2024['date'] > startdate) & (temp_2024['date'] < enddate)]
+        fig, (ax1,ax2,ax3) = plt.subplots(3, sharex=True, figsize=(8,7))
+        ax1.scatter(temp_raw['datetime'],temp_raw['edac'], label='Raw EDAC', s=3)
+        ax2.plot(temp_2024['date'], temp_2024['daily_rate'], marker='o', label ='EDAC count rate')
+    
+        ax3.plot(temp_2024['date'],temp_2024['detrended_rate'], marker='o', label='De-trended rate')
+        ax3.plot(temp_2024['date'],temp_2024['standardized_rate'],marker='o', color='#4daf4a', label='Standardized EDAC count rate')
+        ax3.axvline(x=date,color='black',linewidth='1',label=date)
+        ax3.set_xlabel('Date', fontsize = 12),
+        ax1.set_ylabel('EDAC count', fontsize = 12)
+        ax2.set_ylabel('EDAC count rate', fontsize = 12)
+        ax3.set_ylabel('De-trended count rate', fontsize=12)
+        ax3.tick_params(axis='x', rotation=20)  # Adjust the rotation angle as needed
+        ax1.grid()
+        ax2.grid()
+        ax3.grid()
+        ax1.legend()
+        ax2.legend()
+        #ax3.legend()
+        #plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+        fig.suptitle(str(date.date()), fontsize=16)
+        #plt.tight_layout(pad=2.0)
+        plt.savefig(path+'testplot/'+str(count)+'_' + date_string +'_ny.png', dpi=300, transparent=False)
+        #plt.show()
+        plt.close()
+        count += 1
 path = 'files/' # Path of where files are located
 raw_edac_filename = 'MEX_NDMW0D0G_2024_03_18_19_12_06.135.txt' # Insert the path of the raw EDAC file
 patched_edac_filename = 'raw_edac/patched_mex_edac.txt'
@@ -1139,5 +1179,7 @@ def main():
     print("End")
 
 if __name__ == "__main__":
-    #main()
     detect_cme_events()
+    #cme_dates= read_cme_events()
+    #date_list = cme_dates['eruption_date'].tolist()
+    #create_plots(date_list)
