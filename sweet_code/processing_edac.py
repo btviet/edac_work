@@ -1,39 +1,40 @@
+import os
 import time
 
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from file_paths import get_data_dir
+from parameters import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
 load_dotenv()
 
 
-def read_rawedac(file_path):
+def read_rawedac():
     # Reads the patched MEX EDAC
-    df = pd.read_csv(file_path / "patched_mex_edac.txt",
+    df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac.txt",
                      skiprows=0, sep="\t", parse_dates=['datetime'])
     return df
 
 
-def read_zero_set_correct(file_path):
+def read_zero_set_correct():
     df = pd.read_csv(
-        file_path / 'zerosetcorrected_edac.txt',
+        PROCESSED_DATA_DIR / 'zerosetcorrected_edac.txt',
         skiprows=0, sep="\t", parse_dates=['datetime'])
     return df
 
 
-def read_resampled_df(file_path):
+def read_resampled_df():
     # Retrieves the resampled and zeroset corrected edac
-    df = pd.read_csv(file_path / 'resampled_corrected_edac.txt',
+    df = pd.read_csv(PROCESSED_DATA_DIR / 'resampled_corrected_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
     return df
 
 
-def create_zero_set_correct(file_path):
+def create_zero_set_correct():
     # Create the zero-set corrected dataframe of the raw EDAC counter
     start_time = time.time()
     print("--------- Starting the zeroset correction ---------")
-    df = read_rawedac(file_path)
+    df = read_rawedac()
     diffs = df.edac.diff()
     # Finding the indices where the EDAC counter decreases
     indices = np.where(diffs < 0)[0]
@@ -46,13 +47,14 @@ def create_zero_set_correct(file_path):
         else:
             df.loc[indices[i]:indices[i+1]-1, 'edac'] = \
                 df.loc[indices[i]:indices[i+1]-1, 'edac'] + prev_value
-    df.to_csv(file_path / 'zerosetcorrected_edac.txt', sep='\t', index=False)
-    print("File  ", "zerosetcorrected_edac.txt created")
+    filename = "zerosetcorrected_edac.txt"
+    df.to_csv(PROCESSED_DATA_DIR / filename, sep='\t', index=False)
+    print(f"File {PROCESSED_DATA_DIR}/{filename} created")
     print('Time taken to perform zero-set correction and create files: ',
           f'{time.time() - start_time:.2f}', "seconds")
 
 
-def create_resampled_edac(file_path):
+def create_resampled_edac():
     """
      Resamples the zero set corrected EDAC counter
      to have one reading each day,
@@ -60,7 +62,7 @@ def create_resampled_edac(file_path):
      """
     start_time = time.time()
     print('Starting the resampling to a daily frequency process')
-    zerosetcorrected_df = read_zero_set_correct(file_path)
+    zerosetcorrected_df = read_zero_set_correct()
     zerosetcorrected_df = zerosetcorrected_df.set_index('datetime')
 
     last_df = zerosetcorrected_df.resample('D').last().ffill()
@@ -72,16 +74,17 @@ def create_resampled_edac(file_path):
                         inplace=True)
     df_resampled['daily_rate'] = df_resampled['edac_last']\
         - df_resampled['edac_first']
-    # set datetime of each date to noon
+    # Set datetime of each date to noon
     df_resampled['date'] = df_resampled['date']+pd.Timedelta(hours=12)
     filename = 'resampled_corrected_edac.txt'
-    df_resampled.to_csv(file_path / filename, sep='\t', index=False)
-    print('File ', filename, ' created')
+    df_resampled.to_csv(PROCESSED_DATA_DIR / filename, sep='\t', index=False)
+    print(f"File {PROCESSED_DATA_DIR}/{filename} created")
     print('Time taken: ',
           f'{time.time() - start_time:.2f}', "seconds")
 
 
 def process_raw_edac():
-    file_path = get_data_dir()
-    create_zero_set_correct(file_path)
-    create_resampled_edac(file_path)
+    if not os.path.exists(PROCESSED_DATA_DIR):
+        os.makedirs(PROCESSED_DATA_DIR)
+    create_zero_set_correct()
+    create_resampled_edac()
