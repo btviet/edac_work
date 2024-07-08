@@ -4,14 +4,46 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from detect_sw_events import read_forbush_dates, read_stormy_dates
-from parameters import SUNSPOTS_SAVGOL, UPPER_THRESHOLD
+from detect_sw_events import (
+    read_forbush_sweet_dates,
+    read_sep_sweet_dates,
+    read_stormy_sweet_dates,
+)
+from parameters import (
+    DETRENDED_EDAC_COLOR,
+    LOCAL_DIR,
+    RATE_EDAC_COLOR,
+    RATE_FIT_COLOR,
+    RAW_DATA_DIR,
+    RAW_EDAC_COLOR,
+    SSN_COLOR,
+    SSN_SMOOTHED_COLOR,
+    STANDARDIZED_EDAC_COLOR,
+    SUNSPOTS_SAVGOL,
+    SWEET_EVENTS_DIR,
+    THRESHOLD_COLOR,
+    UPPER_THRESHOLD,
+)
 from processing_edac import read_rawedac
 from scipy.signal import savgol_filter
 from standardize_edac import read_standardized_rates
+from validate_events import read_validation_results
 
 
-def process_sidc_ssn(file_path):
+def process_sidc_ssn():
+    """
+    Processes the SSN data from SIDC
+    Parameters
+    ----------
+    file_path : Path
+        The location of the file containing the SSN data
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe containing the sunspot number
+        for each date
+    """
     column_names = [
         "year",
         "month",
@@ -22,7 +54,7 @@ def process_sidc_ssn(file_path):
         "observations",
         "status",
     ]
-    df_sun = pd.read_csv(file_path / "SN_d_tot_V2.0.csv",
+    df_sun = pd.read_csv(RAW_DATA_DIR / "SN_d_tot_V2.0.csv",
                          names=column_names, sep=";")
     df_sun = df_sun[df_sun["daily_sunspotnumber"] >= 0]
 
@@ -31,17 +63,18 @@ def process_sidc_ssn(file_path):
     return df_sun
 
 
-def plot_rates_all(file_path):
+def plot_rates_all():
     """
-    Plots the EDAC count rate,
+    Plot the EDAC count rate,
     the standardized count rate,
     and the solar cycle
-    for the entire time period
+    for the entire time period covered by
+    MEX EDAC
     """
 
-    standardized_df = read_standardized_rates(file_path)
+    standardized_df = read_standardized_rates()
 
-    df_sun = process_sidc_ssn(file_path)
+    df_sun = process_sidc_ssn()
     start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
     index_exact = np.where(df_sun["date"] == start_date)[0][0]
     df_sun = df_sun.iloc[index_exact:]
@@ -51,7 +84,8 @@ def plot_rates_all(file_path):
     fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 8))
 
     ax1.plot(standardized_df["date"],
-             standardized_df["daily_rate"], label="Count rate")
+             standardized_df["daily_rate"], label="Count rate",
+             color=RATE_EDAC_COLOR)
     ax1.plot(
         standardized_df["date"],
         standardized_df["gcr_component"],
@@ -60,21 +94,21 @@ def plot_rates_all(file_path):
     ax2.plot(
         standardized_df["date"],
         standardized_df["standardized_rate"],
-        color="#4daf4a",
         label="Standardized count rate",
+        color=STANDARDIZED_EDAC_COLOR
     )
     ax3.plot(
         df_sun["date"],
         df_sun["daily_sunspotnumber"],
-        color="#f781bf",
         label="Sunspot number",
+        color=SSN_COLOR
     )
     ax3.plot(
         df_sun["date"],
         sunspots_smoothed,
         linewidth=1,
-        color="#a65628",
         label="Smoothed sunspot number",
+        color=SSN_SMOOTHED_COLOR
     )
     ax3.set_ylabel("Sunspot number")
     ax3.set_xlabel("Date", fontsize=10)
@@ -89,15 +123,20 @@ def plot_rates_all(file_path):
     plt.show()
 
 
-def show_timerange(file_path, startdate, enddate):
-    raw_edac = read_rawedac(file_path)
+def show_timerange(startdate, enddate):
+    """
+    For a time period between startdate and enddate,
+    create plot of the raw EDAC, the count rate,
+    de-trended count rate, standardized count rate
+    """
+    raw_edac = read_rawedac()
     filtered_raw = raw_edac.copy()
     filtered_raw = filtered_raw[
         (filtered_raw["datetime"] > startdate) &
         (filtered_raw["datetime"] < enddate)
     ]
 
-    df = read_standardized_rates(file_path)  # If SUBTRACTION method
+    df = read_standardized_rates()
 
     df = df[(df["date"] > startdate) & (df["date"] < enddate)]
     edac_change = filtered_raw.drop_duplicates(
@@ -113,23 +152,23 @@ def show_timerange(file_path, startdate, enddate):
     filtered_raw.loc[:, "time_difference"] = (
         filtered_raw["datetime"].diff().fillna(pd.Timedelta(seconds=0))
     )
-    if not os.path.exists(file_path / "events"):
-        os.makedirs(file_path / "events")
+    if not os.path.exists(LOCAL_DIR / "events"):
+        os.makedirs(LOCAL_DIR / "events")
 
     filtered_raw.to_csv(
-        file_path / "events" /
+        LOCAL_DIR / "events" /
         f"rawEDAC_{startdate_string}-{enddate_string}.txt",
         sep="\t",
         index=False,
     )  # Save selected raw EDAC to file
     df.to_csv(
-        file_path / "events" /
+        LOCAL_DIR / "events" /
         f"EDACrate_{startdate_string}-{enddate_string}.txt",
         sep="\t",
         index=False,
     )  # Save selected EDAc rate to file
     edac_change.to_csv(
-        file_path / "events" /
+        LOCAL_DIR / "events" /
         f"EDACrate_{startdate_string}-{enddate_string}.txt",
         sep="\t",
         index=False,
@@ -138,20 +177,22 @@ def show_timerange(file_path, startdate, enddate):
     fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True,
                                         figsize=(10, 7))
     ax1.scatter(filtered_raw["datetime"], filtered_raw["edac"],
-                label="Raw EDAC", s=3)
+                label="Raw EDAC", s=3, color=RAW_EDAC_COLOR)
     ax2.plot(df["date"], df["daily_rate"], marker="o",
-             label="EDAC count rate")
+             label="EDAC count rate", color=RATE_EDAC_COLOR)
 
     ax3.plot(df["date"], df["detrended_rate"], marker="o",
-             label="De-trended rate")
+             label="De-trended rate", color=DETRENDED_EDAC_COLOR)
     ax3.plot(
         df["date"],
         df["standardized_rate"],
         marker="o",
-        color="#4daf4a",
         label="Standardized EDAC count rate",
+        color=STANDARDIZED_EDAC_COLOR
     )
-
+    ax3.axhline(
+        UPPER_THRESHOLD, label='threshold', color=THRESHOLD_COLOR
+            )
     ax3.set_xlabel("Date", fontsize=12)
     ax1.set_ylabel("EDAC count", fontsize=12)
     ax2.set_ylabel("EDAC count rate", fontsize=12)
@@ -168,9 +209,9 @@ def show_timerange(file_path, startdate, enddate):
     # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
     plt.tight_layout(pad=2.0)
 
-    # plt.savefig(file_path/'events'
-    # /f'edac_{startdate_string}{enddate_string}.png',
-    # dpi=300, transparent=False)
+    plt.savefig(LOCAL_DIR / 'events' /
+                f'edac_{startdate_string}{enddate_string}.png',
+                dpi=300, transparent=False)
     plt.show()
 
 
@@ -179,9 +220,12 @@ def create_plots(file_path, date_list, folder_name):
     Create plots of EDAC count,
     EDAC count rate
     and detrended EDAC count rate
+    for a given date_list
     """
-    raw_edac = read_rawedac(file_path)
-    df = read_standardized_rates(file_path)
+    if not os.path.exists(file_path / folder_name):
+        os.makedirs(file_path / folder_name)
+    raw_edac = read_rawedac()
+    df = read_standardized_rates()
     count = 1
     for date in date_list:
         print("Date: ", date)
@@ -200,12 +244,14 @@ def create_plots(file_path, date_list, folder_name):
         ]
         fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(8, 7))
         ax1.scatter(temp_raw["datetime"], temp_raw["edac"],
-                    label="Raw EDAC", s=3)
+                    label="Raw EDAC", s=3,
+                    color=RAW_EDAC_COLOR)
         ax2.plot(
             temp_2024["date"],
             temp_2024["daily_rate"],
             marker="o",
             label="EDAC count rate",
+            color=RATE_EDAC_COLOR,
         )
 
         ax3.plot(
@@ -213,14 +259,17 @@ def create_plots(file_path, date_list, folder_name):
             temp_2024["detrended_rate"],
             marker="o",
             label="De-trended rate",
+            color=DETRENDED_EDAC_COLOR
         )
         ax3.plot(
             temp_2024["date"],
             temp_2024["standardized_rate"],
             marker="o",
-            color="#4daf4a",
             label="Standardized EDAC count rate",
+            color=STANDARDIZED_EDAC_COLOR
+
         )
+        ax3.axhline(UPPER_THRESHOLD, color=THRESHOLD_COLOR)
         ax3.axvline(x=date, color="black", linewidth="1", label=date)
         ax3.set_xlabel("Date", fontsize=12),
         ax1.set_ylabel("EDAC count", fontsize=12)
@@ -237,9 +286,6 @@ def create_plots(file_path, date_list, folder_name):
         # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
         fig.suptitle(str(date.date()), fontsize=16)
         # plt.tight_layout(pad=2.0)
-
-        if not os.path.exists(file_path / folder_name):
-            os.makedirs(file_path / folder_name)
         plt.savefig(
             file_path / folder_name / f"{str(count)}_{date_string}",
             dpi=300,
@@ -251,10 +297,12 @@ def create_plots(file_path, date_list, folder_name):
         count += 1
 
 
-def plot_histogram_rates(file_path):
-
-    df = read_standardized_rates(file_path)
-    data = df["standardized_rate"]  # If subtraction method
+def plot_histogram_rates():
+    """
+    Plot histogram distribution
+    of standardized EDAC count rate"""
+    df = read_standardized_rates()
+    data = df["standardized_rate"]
     binsize = 0.3
     max_rate = np.max(data)
     min_rate = np.min(data)
@@ -281,7 +329,7 @@ def group_zerodays(file_path):
     6 month bins, and plot
     with the solar cycle
     """
-    df = read_forbush_dates(file_path)
+    df = read_forbush_sweet_dates(file_path)
 
     def group_by_6_months(date):
         return pd.Timestamp(date.year, ((date.month - 1) // 6) * 6 + 1, 1)
@@ -292,10 +340,10 @@ def group_zerodays(file_path):
     grouped_df["datebin"] = grouped_df["datebin"] \
         + pd.DateOffset(months=3)
     stormy_total = grouped_df["counts"].sum()
-    print("number of forbush decreases: ", stormy_total)
+    print("Number of forbush decreases: ", stormy_total)
 
     start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
-    df_sun = process_sidc_ssn(file_path)
+    df_sun = process_sidc_ssn()
     index_exact = np.where(df_sun["date"] == start_date)[0][0]
     df_sun = df_sun.iloc[index_exact:]
     savgolwindow_sunspots = 601
@@ -339,24 +387,34 @@ def group_zerodays(file_path):
     plt.show()
 
 
-def create_fd_plots(file_path):
-    df_dates = read_forbush_dates(file_path)
+def create_stormy_plots():
+    print("Creating plots of SWEET stormy dates")
+    df_dates = read_stormy_sweet_dates()
     date_list = df_dates["date"].tolist()
-    folder_name = ""
-    create_plots(file_path, date_list, folder_name)
+    folder_name = "stormy_sweet"
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name)
 
 
-def create_sep_plots(file_path):
-    df_dates = read_stormy_dates()
+def create_fd_plots():
+    print("Creating plots of SWEET Forbush decreases")
+    df_dates = read_forbush_sweet_dates()
     date_list = df_dates["date"].tolist()
-    folder_name = "stormy"
-    create_plots(file_path, date_list, folder_name)
+    folder_name = "forbush_decreases_sweet"
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name)
 
 
-def plot_stormy_detection(file_path):
+def create_sep_plots():
+    print("Creating plots of SWEET SEP dates")
+    df_dates = read_sep_sweet_dates()
+    date_list = df_dates["date"].tolist()
+    folder_name = "sep_sweet"
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name)
+
+
+def plot_stormy_detection():
     start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
-    df = read_standardized_rates(file_path)
-    df_sun = process_sidc_ssn(file_path)
+    df = read_standardized_rates()
+    df_sun = process_sidc_ssn()
     index_exact = np.where(df_sun["date"] == start_date)[0][0]
     df_sun = df_sun.iloc[index_exact:]
     savgolwindow_sunspots = 601
@@ -366,18 +424,21 @@ def plot_stormy_detection(file_path):
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 8))
 
-    ax1.plot(df["date"], df["daily_rate"], label="EDAC count rate")
-    ax1.plot(df["date"], df["gcr_component"], label="Savitzky-Golay fit")
+    ax1.plot(df["date"], df["daily_rate"], label="EDAC count rate",
+             COLOR=RATE_EDAC_COLOR)
+    ax1.plot(df["date"], df["gcr_component"], label="Savitzky-Golay fit",
+             color=RATE_FIT_COLOR)
 
     ax2.plot(
         df["date"],
         df["standardized_rate"],
-        color="#4daf4a",
         label="Standardized count rate",
+        color=STANDARDIZED_EDAC_COLOR
     )
     ax2.axhline(
-        UPPER_THRESHOLD, color="purple",
-        label="Threshold: " + str(UPPER_THRESHOLD)
+        UPPER_THRESHOLD,
+        label="Threshold: " + str(UPPER_THRESHOLD),
+        color=THRESHOLD_COLOR
     )
     # ax2.axhline(lower_threshold, color= thresholdcolor,
     #  label='Threshold: ' + str(lower_threshold))
@@ -387,14 +448,14 @@ def plot_stormy_detection(file_path):
     ax3.plot(
         df_sun["date"],
         df_sun["daily_sunspotnumber"],
-        color="#f781bf",
+        color=SSN_COLOR,
         label="Number of sunspots",
     )
     ax3.plot(
         df_sun["date"],
         sunspots_smoothed,
         linewidth=1,
-        color="#a65628",
+        color=SSN_SMOOTHED_COLOR,
         label="Smoothed sunspots",
     )
     ax3.set_ylabel("Sunspot number")
@@ -407,15 +468,15 @@ def plot_stormy_detection(file_path):
     # plt.show()
 
 
-def plot_stormy_days_bin(file_path):
+def plot_stormy_days_bin():
     def group_by_6_months(date):
         return pd.Timestamp(date.year, ((date.month - 1) // 6) * 6 + 1, 1)
 
-    spike_df = read_stormy_dates(file_path)
+    spike_df = read_stormy_sweet_dates()
     sep_df = spike_df[spike_df["type"] == "SEP"]
     forbush_df = spike_df[spike_df["type"] == "Forbush"]
     start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
-    df_sun = process_sidc_ssn(file_path)
+    df_sun = process_sidc_ssn()
     index_exact = np.where(df_sun["date"] == start_date)[0][0]
     df_sun = df_sun.iloc[index_exact:]
     savgolwindow_sunspots = 601
@@ -536,3 +597,83 @@ def plot_stormy_days_bin(file_path):
     ax2.legend(loc="upper right")
     plt.title("Sunspot number and number of FDs in 6 month bins")
     plt.show()
+
+
+def plot_real_eruption_dates():
+    raw_edac = read_rawedac(
+    )
+    standardized_df = read_standardized_rates()
+    validation_df = read_validation_results()
+    folder_name = 'validation_result'
+    if not os.path.exists(LOCAL_DIR / folder_name):
+        os.makedirs(LOCAL_DIR / folder_name)
+
+    for i in range(0, len(validation_df)):
+        current_date = validation_df.iloc[i]["eruption_date"]
+        event_status = validation_df.iloc[i]["result"]
+        date_string = str(current_date.date()).replace(" ", "_")
+        startdate = current_date - pd.Timedelta(days=21)
+        enddate = current_date + pd.Timedelta(days=21)
+        temp_raw = raw_edac.copy()
+        temp_raw = temp_raw[
+            (temp_raw["datetime"] > startdate) &
+            (temp_raw["datetime"] < enddate)
+        ]
+        temp_standardized = standardized_df.copy()
+        temp_standardized = temp_standardized[
+            (temp_standardized["date"] > startdate) &
+            (temp_standardized["date"] < enddate)
+        ]
+        fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 7))
+        ax1.scatter(temp_raw["datetime"], temp_raw["edac"],
+                    label="Raw EDAC", s=3,
+                    color=RAW_EDAC_COLOR)
+        ax2.plot(
+            temp_standardized["date"],
+            temp_standardized["daily_rate"],
+            marker="o",
+            label="EDAC count rate",
+            color=RATE_EDAC_COLOR
+        )
+        ax3.plot(
+            temp_standardized["date"],
+            temp_standardized["detrended_rate"],
+            marker="o",
+            label="De-trended rate",
+            color=DETRENDED_EDAC_COLOR
+        )
+        ax3.plot(
+            temp_standardized["date"],
+            temp_standardized["standardized_rate"],
+            marker="o",
+            label="Standardized EDAC count rate",
+            color=STANDARDIZED_EDAC_COLOR
+        )
+        ax3.axvline(x=current_date, color="black", linestyle='dashed',
+                    linewidth="1", label=current_date)
+        ax3.axhline(UPPER_THRESHOLD, color=THRESHOLD_COLOR)
+        ax3.set_xlabel("Date", fontsize=12),
+        ax1.set_ylabel("EDAC count", fontsize=12)
+        ax2.set_ylabel("EDAC count rate", fontsize=12)
+        ax3.set_ylabel("De-trended count rate", fontsize=12)
+        # Adjust the rotation angle as needed
+        ax3.tick_params(axis="x", rotation=20)
+        ax1.grid()
+        ax2.grid()
+        ax3.grid()
+        ax1.legend()
+        ax2.legend()
+        ax1.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax2.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax3.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+        fig.suptitle(f"{current_date.date()}, SWEET found: {event_status}")
+        plt.tight_layout(pad=2.0)
+        plt.savefig(
+            LOCAL_DIR / folder_name / f"{date_string}",
+            dpi=300,
+            transparent=False,
+        )
+
+        # plt.show()
+        plt.close()
