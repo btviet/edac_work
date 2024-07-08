@@ -37,4 +37,5 @@ if __name__ == "__main__":
     # combine_findings_sep_fd()
     # analyze_validation_results()
     # validate_cme_eruptions()
-    plot_real_eruption_dates()
+    # plot_real_eruption_dates()
+    print("End")
