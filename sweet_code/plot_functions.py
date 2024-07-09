@@ -9,7 +9,7 @@ from detect_sw_events import (
     read_sep_sweet_dates,
     read_stormy_sweet_dates,
 )
-from old_sweet_comparison import read_validation_results_old
+from old_sweet_comparison import read_cme_validation_results_old
 from parameters import (
     DETRENDED_EDAC_COLOR,
     LOCAL_DIR,
@@ -695,7 +695,7 @@ def plot_compare_sweets_validations():
     and old SWEET
 
     """
-    validation_old = read_validation_results_old()
+    validation_old = read_cme_validation_results_old()
     validation_new = read_cme_validation_results()
     folder_name = "bothsweets_validation"
 
