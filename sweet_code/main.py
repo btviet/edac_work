@@ -38,3 +38,4 @@ if __name__ == "__main__":
     # analyze_validation_results()
     # validate_cme_eruptions()
     plot_real_eruption_dates()
+    # plot_compare_sweets_validations()
