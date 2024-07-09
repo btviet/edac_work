@@ -35,12 +35,10 @@ def generate_next_3_days(start_date):
 def detect_real_sep():
     sweet_df = read_sep_sweet_dates()
     sweet_df['date'] = sweet_df['date'].dt.date
-    print(sweet_df, "sweet_df")
     sep_df = read_sep_events()
     sep_dict = dict.fromkeys(sep_df['onset_time'], [])
     for event_date in sep_dict.keys():
         sep_dict[event_date] = generate_next_3_days(event_date)
-    print(sep_dict, "sep_dict")
     results = {}
     for key, values in sep_dict.items():
         # For each SEP onset time
