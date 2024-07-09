@@ -15,7 +15,7 @@ LOCAL_DIR = get_data_dir()
 RAW_DATA_DIR = LOCAL_DIR / "raw_data/"
 PROCESSED_DATA_DIR = LOCAL_DIR / "processed/"
 SWEET_EVENTS_DIR = LOCAL_DIR / "edac_events/"
-
+OLD_SWEET_DIR = LOCAL_DIR / "old_sweet/"
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
 RAW_EDAC_COLOR = "#0077BB"
 RATE_EDAC_COLOR = "#33BBEE"
