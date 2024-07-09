@@ -17,6 +17,7 @@ from parameters import (
     RATE_FIT_COLOR,
     RAW_DATA_DIR,
     RAW_EDAC_COLOR,
+    SEP_VALIDATION_DIR,
     SSN_COLOR,
     SSN_SMOOTHED_COLOR,
     STANDARDIZED_EDAC_COLOR,
@@ -28,7 +29,8 @@ from parameters import (
 from processing_edac import read_rawedac
 from scipy.signal import savgol_filter
 from standardize_edac import read_standardized_rates
-from validate_events import read_validation_results
+from validate_cme_events import read_cme_validation_results
+from validate_sep_events import read_sep_validation_results
 
 
 def process_sidc_ssn():
@@ -607,7 +609,7 @@ def plot_real_eruption_dates():
     raw_edac = read_rawedac(
     )
     standardized_df = read_standardized_rates()
-    validation_df = read_validation_results()
+    validation_df = read_cme_validation_results()
     folder_name = 'validation_result'
     if not os.path.exists(LOCAL_DIR / folder_name):
         os.makedirs(LOCAL_DIR / folder_name)
@@ -694,7 +696,7 @@ def plot_compare_sweets_validations():
 
     """
     validation_old = read_validation_results_old()
-    validation_new = read_validation_results()
+    validation_new = read_cme_validation_results()
     folder_name = "bothsweets_validation"
 
     raw_edac = read_rawedac(
@@ -769,6 +771,90 @@ def plot_compare_sweets_validations():
         plt.tight_layout(pad=2.0)
         plt.savefig(
             LOCAL_DIR / folder_name / f"{date_string}",
+            dpi=300,
+            transparent=False,
+        )
+
+        # plt.show()
+        plt.close()
+
+
+def plot_real_sep_onsets():
+    """
+    Plot the raw EDAC, EDAC count rate and
+    the de-trended rate for the SEP onset times
+    """
+    raw_edac = read_rawedac(
+    )
+    standardized_df = read_standardized_rates()
+    validation_df = read_sep_validation_results()
+    folder_name = 'validation_result'
+    if not os.path.exists(SEP_VALIDATION_DIR / folder_name):
+        os.makedirs(SEP_VALIDATION_DIR / folder_name)
+
+    for i in range(0, len(validation_df)):
+        current_date = validation_df.iloc[i]["onset_time"]
+        event_status = validation_df.iloc[i]["SEP_found"]
+        date_string = str(current_date.date()).replace(" ", "_")
+        startdate = current_date - pd.Timedelta(days=21)
+        enddate = current_date + pd.Timedelta(days=21)
+        temp_raw = raw_edac.copy()
+        temp_raw = temp_raw[
+            (temp_raw["datetime"] > startdate) &
+            (temp_raw["datetime"] < enddate)
+        ]
+        temp_standardized = standardized_df.copy()
+        temp_standardized = temp_standardized[
+            (temp_standardized["date"] > startdate) &
+            (temp_standardized["date"] < enddate)
+        ]
+        fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 7))
+        ax1.scatter(temp_raw["datetime"], temp_raw["edac"],
+                    label="Raw EDAC", s=3,
+                    color=RAW_EDAC_COLOR)
+        ax2.plot(
+            temp_standardized["date"],
+            temp_standardized["daily_rate"],
+            marker="o",
+            label="EDAC count rate",
+            color=RATE_EDAC_COLOR
+        )
+        ax3.plot(
+            temp_standardized["date"],
+            temp_standardized["detrended_rate"],
+            marker="o",
+            label="De-trended rate",
+            color=DETRENDED_EDAC_COLOR
+        )
+        ax3.plot(
+            temp_standardized["date"],
+            temp_standardized["standardized_rate"],
+            marker="o",
+            label="Standardized EDAC count rate",
+            color=STANDARDIZED_EDAC_COLOR
+        )
+        ax3.axvline(x=current_date, color="black", linestyle='dashed',
+                    linewidth="1", label=current_date)
+        ax3.axhline(UPPER_THRESHOLD, color=THRESHOLD_COLOR)
+        ax3.set_xlabel("Date", fontsize=12),
+        ax1.set_ylabel("EDAC count", fontsize=12)
+        ax2.set_ylabel("EDAC count rate", fontsize=12)
+        ax3.set_ylabel("De-trended count rate", fontsize=12)
+        # Adjust the rotation angle as needed
+        ax3.tick_params(axis="x", rotation=20)
+        ax1.grid()
+        ax2.grid()
+        ax3.grid()
+        ax1.legend()
+        ax2.legend()
+        ax1.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax2.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax3.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
+        fig.suptitle(f"{current_date.date()}, SWEET found: {event_status}")
+        plt.tight_layout(pad=2.0)
+        plt.savefig(
+            SEP_VALIDATION_DIR / folder_name / f"{date_string}",
             dpi=300,
             transparent=False,
         )

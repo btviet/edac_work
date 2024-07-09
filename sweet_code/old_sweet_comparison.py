@@ -1,6 +1,6 @@
 import pandas as pd
 from parameters import OLD_SWEET_DIR
-from validate_events import (
+from validate_cme_events import (
     generate_fd_search_area,
     generate_next_7_days,
     read_cme_events,
@@ -99,7 +99,3 @@ def analyze_validation_results():
     sweet_detected = df['result'].sum()
     print(f"Number of events: {number_events} \
            SWEET found: {sweet_detected}")
-
-
-combine_findings_sep_fd()
-analyze_validation_results()

@@ -7,7 +7,8 @@ from plot_functions import (
 )
 from processing_edac import process_raw_edac
 from standardize_edac import standardize
-from validate_events import validate_cme_eruptions
+from validate_cme_events import validate_cme_eruptions
+from validate_sep_events import validate_sep_onsets
 
 
 def sweet():
@@ -37,5 +38,5 @@ if __name__ == "__main__":
     # combine_findings_sep_fd()
     # analyze_validation_results()
     # validate_cme_eruptions()
-    plot_real_eruption_dates()
+    validate_sep_onsets()
     # plot_compare_sweets_validations()

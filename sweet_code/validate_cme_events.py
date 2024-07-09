@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pandas as pd
 from detect_sw_events import read_forbush_sweet_dates, read_sep_sweet_dates
-from parameters import LOCAL_DIR
+from parameters import CME_VALIDATION_DIR, LOCAL_DIR
 
 
 def read_cme_events() -> pd.DataFrame:
@@ -53,8 +53,9 @@ def detect_real_sep():
         results[key] = match_found
     df = pd.DataFrame(list(results.items()),
                       columns=['eruption_date', 'SEP_found'])
-    df.to_csv(LOCAL_DIR / "validation_events_sep.txt", sep='\t', index=False)
-    print(f"File created: {LOCAL_DIR}/validation_events_sep.txt")
+    df.to_csv(CME_VALIDATION_DIR / "validation_events_sep.txt",
+              sep='\t', index=False)
+    print(f"File created: {CME_VALIDATION_DIR}/validation_events_sep.txt")
 
 
 def detect_real_fd():
@@ -74,29 +75,30 @@ def detect_real_fd():
         results[key] = match_found
     df = pd.DataFrame(list(results.items()),
                       columns=['eruption_date', 'FD_found'])
-    df.to_csv(LOCAL_DIR / "validation_events_fd.txt", sep='\t', index=False)
-    print(f"File created: {LOCAL_DIR}/validation_events_fd.txt")
+    df.to_csv(CME_VALIDATION_DIR / "validation_events_fd.txt",
+              sep='\t', index=False)
+    print(f"File created: {CME_VALIDATION_DIR}/validation_events_fd.txt")
 
 
 def combine_findings_sep_fd():
-    sep_df = pd.read_csv(LOCAL_DIR / 'validation_events_sep.txt',
+    sep_df = pd.read_csv(CME_VALIDATION_DIR / 'validation_events_sep.txt',
                          skiprows=0, sep="\t", parse_dates=['eruption_date'])
-    fd_df = pd.read_csv(LOCAL_DIR / 'validation_events_fd.txt',
+    fd_df = pd.read_csv(CME_VALIDATION_DIR / 'validation_events_fd.txt',
                         skiprows=0, sep="\t", parse_dates=['eruption_date'])
     merged_df = pd.merge(sep_df, fd_df, on='eruption_date')
     merged_df['result'] = merged_df[['SEP_found', 'FD_found']].any(axis=1)
-    merged_df.to_csv(LOCAL_DIR / "validation_events_combined.txt",
+    merged_df.to_csv(CME_VALIDATION_DIR / "validation_events_combined.txt",
                      sep='\t', index=False)
-    print(f"File created: {LOCAL_DIR}/validation_events_combined.txt")
+    print(f"File created: {CME_VALIDATION_DIR}/validation_events_combined.txt")
 
 
-def read_validation_results():
-    return pd.read_csv(LOCAL_DIR / 'validation_events_combined.txt',
+def read_cme_validation_results():
+    return pd.read_csv(CME_VALIDATION_DIR / 'validation_events_combined.txt',
                        skiprows=0, sep="\t", parse_dates=['eruption_date'])
 
 
-def analyze_validation_results():
-    df = read_validation_results()
+def analyze_cme_validation_results():
+    df = read_cme_validation_results()
     number_events = len(df)
     sweet_detected = df['result'].sum()
     print(f"Number of events: {number_events} \
