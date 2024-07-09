@@ -66,5 +66,5 @@ def analyze_sep_validation_results():
 
 
 def validate_sep_onsets():
-    # detect_real_sep()
+    detect_real_sep()
     analyze_sep_validation_results()
