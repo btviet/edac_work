@@ -9,6 +9,8 @@ from detect_sw_events import (
     read_sep_sweet_dates,
     read_stormy_sweet_dates,
 )
+from matplotlib.dates import YearLocator
+from matplotlib.ticker import MultipleLocator
 from old_sweet_comparison import read_cme_validation_results_old
 from parameters import (
     DETRENDED_EDAC_COLOR,
@@ -26,11 +28,73 @@ from parameters import (
     THRESHOLD_COLOR,
     UPPER_THRESHOLD,
 )
-from processing_edac import read_rawedac
+from processing_edac import read_rawedac, read_zero_set_correct
 from scipy.signal import savgol_filter
 from standardize_edac import read_standardized_rates
 from validate_cme_events import read_cme_validation_results
 from validate_sep_events import read_sep_validation_results
+
+
+def plot_raw_edac():
+    # Figure in thesis
+    df = read_rawedac()
+
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax1.plot(df["datetime"], df["edac"],
+             label='Raw MEX EDAC',
+             color=RAW_EDAC_COLOR)
+    ax1.set_xlabel("Date", fontsize=16)
+    ax1.set_ylabel("MEX EDAC count [#]", fontsize=16)
+
+    major_x_locator = YearLocator(4)
+    ax1.xaxis.set_major_locator(major_x_locator)
+    ax1.minorticks_on()
+    minor_x_locator = YearLocator(2)
+    ax1.xaxis.set_minor_locator(minor_x_locator)
+    major_y_locator = MultipleLocator(5000)
+    ax1.yaxis.set_major_locator(major_y_locator)
+
+    minor_y_locator = MultipleLocator(2500)
+    ax1.yaxis.set_minor_locator(minor_y_locator)
+
+    ax1.tick_params(which='minor', length=6)
+    ax1.tick_params(which='major', length=10, labelsize=12)
+    ax1.legend()
+    ax1.grid()
+    fig.suptitle("MEX EDAC counter", fontsize=16)
+    plt.tight_layout(pad=1.0)
+    plt.show()
+
+
+def plot_zero_set_correction():
+    # Figure in thesis
+    df = read_zero_set_correct()
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax1.plot(df["datetime"], df["edac"],
+             label='Zero set corrected MEX EDAC',
+             color=RAW_EDAC_COLOR)
+    ax1.set_xlabel("Date", fontsize=16)
+    ax1.set_ylabel("MEX EDAC count [#]", fontsize=16)
+
+    major_x_locator = YearLocator(4)
+    ax1.xaxis.set_major_locator(major_x_locator)
+    ax1.minorticks_on()
+    minor_x_locator = YearLocator(2)
+    ax1.xaxis.set_minor_locator(minor_x_locator)
+    major_y_locator = MultipleLocator(2000)
+    ax1.yaxis.set_major_locator(major_y_locator)
+
+    # Set minor ticks locator for y-axis
+    minor_y_locator = MultipleLocator(1000)
+    ax1.yaxis.set_minor_locator(minor_y_locator)
+
+    ax1.tick_params(which='minor', length=6)
+    ax1.tick_params(which='major', length=10, labelsize=12)
+    ax1.legend()
+    ax1.grid()
+    fig.suptitle("Zero set correction of MEX EDAC", fontsize=16)
+    plt.tight_layout(pad=1.0)
+    plt.show()
 
 
 def process_sidc_ssn():
@@ -245,7 +309,7 @@ def create_plots(file_path, date_list, folder_name):
             (temp_2024["date"] > startdate) &
             (temp_2024["date"] < enddate)
         ]
-        fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(8, 7))
+        fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 7))
         ax1.scatter(temp_raw["datetime"], temp_raw["edac"],
                     label="Raw EDAC", s=3,
                     color=RAW_EDAC_COLOR)
@@ -283,12 +347,12 @@ def create_plots(file_path, date_list, folder_name):
         ax1.grid()
         ax2.grid()
         ax3.grid()
-        ax1.legend()
-        ax2.legend()
-        # ax3.legend()
+        ax1.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax2.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax3.legend(loc='upper left', bbox_to_anchor=(1, 1))
         # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
         fig.suptitle(str(date.date()), fontsize=16)
-        # plt.tight_layout(pad=2.0)
+        plt.tight_layout(pad=2.0)
         plt.savefig(
             file_path / folder_name / f"{str(count)}_{date_string}",
             dpi=300,
