@@ -14,6 +14,9 @@ from matplotlib.ticker import MultipleLocator
 from old_sweet_comparison import read_cme_validation_results_old
 from parameters import (
     DETRENDED_EDAC_COLOR,
+    FONTSIZE_AXES_LABELS,
+    FONTSIZE_AXES_TICKS,
+    FONTSIZE_TITLE,
     LOCAL_DIR,
     RATE_EDAC_COLOR,
     RATE_FIT_COLOR,
@@ -28,9 +31,13 @@ from parameters import (
     THRESHOLD_COLOR,
     UPPER_THRESHOLD,
 )
-from processing_edac import read_rawedac, read_zero_set_correct
+from processing_edac import (
+    read_rawedac,
+    read_resampled_df,
+    read_zero_set_correct,
+)
 from scipy.signal import savgol_filter
-from standardize_edac import read_standardized_rates
+from standardize_edac import read_detrended_rates
 from validate_cme_events import read_cme_validation_results
 from validate_sep_events import read_sep_validation_results
 
@@ -42,9 +49,10 @@ def plot_raw_edac():
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.plot(df["datetime"], df["edac"],
              label='Raw MEX EDAC',
-             color=RAW_EDAC_COLOR)
-    ax1.set_xlabel("Date", fontsize=16)
-    ax1.set_ylabel("MEX EDAC count [#]", fontsize=16)
+             color=RAW_EDAC_COLOR,
+             linewidth=2)
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("MEX EDAC count [#]", fontsize=FONTSIZE_AXES_LABELS)
 
     major_x_locator = YearLocator(4)
     ax1.xaxis.set_major_locator(major_x_locator)
@@ -58,10 +66,11 @@ def plot_raw_edac():
     ax1.yaxis.set_minor_locator(minor_y_locator)
 
     ax1.tick_params(which='minor', length=6)
-    ax1.tick_params(which='major', length=10, labelsize=12)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax1.legend()
     ax1.grid()
-    fig.suptitle("MEX EDAC counter", fontsize=16)
+    fig.suptitle("MEX EDAC counter from January 1st, 2004 to April 10th, 2024",
+                 fontsize=FONTSIZE_TITLE)
     plt.tight_layout(pad=1.0)
     plt.show()
 
@@ -71,10 +80,11 @@ def plot_zero_set_correction():
     df = read_zero_set_correct()
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.plot(df["datetime"], df["edac"],
-             label='Zero set corrected MEX EDAC',
-             color=RAW_EDAC_COLOR)
-    ax1.set_xlabel("Date", fontsize=16)
-    ax1.set_ylabel("MEX EDAC count [#]", fontsize=16)
+             label='Zero-set corrected MEX EDAC',
+             color=RAW_EDAC_COLOR,
+             linewidth=2)
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("MEX EDAC count [#]", fontsize=FONTSIZE_AXES_LABELS)
 
     major_x_locator = YearLocator(4)
     ax1.xaxis.set_major_locator(major_x_locator)
@@ -89,11 +99,94 @@ def plot_zero_set_correction():
     ax1.yaxis.set_minor_locator(minor_y_locator)
 
     ax1.tick_params(which='minor', length=6)
-    ax1.tick_params(which='major', length=10, labelsize=12)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax1.legend()
     ax1.grid()
-    fig.suptitle("Zero set correction of MEX EDAC", fontsize=16)
+    fig.suptitle("Zero-set correction of MEX EDAC", fontsize=FONTSIZE_TITLE)
     plt.tight_layout(pad=1.0)
+    plt.show()
+
+
+def plot_rates_only():
+    """
+    MEX EDAC daily rate only """
+    df = read_resampled_df()
+    rate_mean = round(df['daily_rate'].mean(), 3)
+    print(df.sort_values(by='daily_rate'))
+
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax1.plot(df["date"], df["daily_rate"],
+
+             label=f'Daily MEX EDAC rate, mean = {rate_mean} counts per day',
+             color=RATE_EDAC_COLOR,
+             linewidth=2)
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("MEX EDAC count rate [#/day]",
+                   fontsize=FONTSIZE_AXES_LABELS)
+
+    major_x_locator = YearLocator(4)
+    ax1.xaxis.set_major_locator(major_x_locator)
+    ax1.minorticks_on()
+    minor_x_locator = YearLocator(2)
+    ax1.xaxis.set_minor_locator(minor_x_locator)
+    major_y_locator = MultipleLocator(5000)
+    ax1.yaxis.set_major_locator(major_y_locator)
+
+    minor_y_locator = MultipleLocator(2500)
+    ax1.yaxis.set_minor_locator(minor_y_locator)
+
+    ax1.tick_params(which='minor', length=6)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.legend()
+    ax1.grid()
+    fig.suptitle("MEX EDAC daily rate between Jan 2004 and Apr 2024",
+                 fontsize=FONTSIZE_TITLE)
+    plt.tight_layout(pad=1.0)
+    plt.show()
+
+
+def plot_gcr_fit_ssn():
+    detrended_df = read_detrended_rates()
+    df_sun = process_sidc_ssn()
+    start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
+    index_exact = np.where(df_sun["date"] == start_date)[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    # sunspots_smoothed = savgol_filter(df_sun["daily_sunspotnumber"],
+    # SUNSPOTS_SAVGOL, 3)
+
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax2 = ax1.twinx()
+    ax2.plot(
+        detrended_df["date"],
+        detrended_df["gcr_component"],
+        label="Savitzky-Golay fit",
+        color=RAW_EDAC_COLOR
+    )
+
+    ax1.plot(
+        df_sun["date"],
+        df_sun["daily_sunspotnumber"],
+        label="Sunspot number",
+        color=SSN_COLOR
+    )
+
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Sunspot number", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("Count rate [#/day]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    major_y_locator = MultipleLocator(50)
+    ax1.yaxis.set_major_locator(major_y_locator)
+
+    minor_y_locator = MultipleLocator(25)
+    ax1.yaxis.set_minor_locator(minor_y_locator)
+
+    ax1.grid()
+
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.subplots_adjust(hspace=0.5)
     plt.show()
 
 
@@ -131,6 +224,7 @@ def process_sidc_ssn():
 
 
 def plot_rates_all():
+    # Figure for thesis
     """
     Plot the EDAC count rate,
     the standardized count rate,
@@ -139,8 +233,8 @@ def plot_rates_all():
     MEX EDAC
     """
 
-    standardized_df = read_standardized_rates()
-
+    detrended_df = read_detrended_rates()
+    print("mean: ", detrended_df["detrended_rate"].mean())
     df_sun = process_sidc_ssn()
     start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
     index_exact = np.where(df_sun["date"] == start_date)[0][0]
@@ -148,21 +242,22 @@ def plot_rates_all():
     sunspots_smoothed = savgol_filter(df_sun["daily_sunspotnumber"],
                                       SUNSPOTS_SAVGOL, 3)
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 8))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 10))
 
-    ax1.plot(standardized_df["date"],
-             standardized_df["daily_rate"], label="Count rate",
+    ax1.plot(detrended_df["date"],
+             detrended_df["daily_rate"], label="EDAC count rate",
              color=RATE_EDAC_COLOR)
     ax1.plot(
-        standardized_df["date"],
-        standardized_df["gcr_component"],
+        detrended_df["date"],
+        detrended_df["gcr_component"],
         label="Savitzky-Golay fit",
+        color=RATE_FIT_COLOR
     )
     ax2.plot(
-        standardized_df["date"],
-        standardized_df["standardized_rate"],
-        label="Standardized count rate",
-        color=STANDARDIZED_EDAC_COLOR
+        detrended_df["date"],
+        detrended_df["detrended_rate"],
+        label="Detrended count rate",
+        color=DETRENDED_EDAC_COLOR
     )
     ax3.plot(
         df_sun["date"],
@@ -177,16 +272,21 @@ def plot_rates_all():
         label="Smoothed sunspot number",
         color=SSN_SMOOTHED_COLOR
     )
-    ax3.set_ylabel("Sunspot number")
-    ax3.set_xlabel("Date", fontsize=10)
-    ax1.set_ylabel("EDAC count rate [#/day]", fontsize=10)
-    ax2.set_ylabel("Standardized EDAC count rate [#/day]", fontsize=10)
+    ax3.set_ylabel("Sunspot number [#]", fontsize=FONTSIZE_AXES_LABELS)
+    ax3.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Count rate [#/day]", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("Detrended count rate [#/day]",
+                   fontsize=FONTSIZE_AXES_LABELS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax3.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax1.grid()
     ax2.grid()
     ax3.grid()
-    ax1.legend()
-    ax2.legend()
-    ax3.legend()
+    ax1.legend(loc='upper right')
+    ax2.legend(loc='upper right')
+    ax3.legend(loc='upper left', bbox_to_anchor=(0.12, 1))
+    plt.subplots_adjust(hspace=0.5)
     plt.show()
 
 
@@ -203,7 +303,7 @@ def show_timerange(startdate, enddate):
         (filtered_raw["datetime"] < enddate)
     ]
 
-    df = read_standardized_rates()
+    df = read_detrended_rates()
 
     df = df[(df["date"] > startdate) & (df["date"] < enddate)]
     edac_change = filtered_raw.drop_duplicates(
@@ -250,13 +350,13 @@ def show_timerange(startdate, enddate):
 
     ax3.plot(df["date"], df["detrended_rate"], marker="o",
              label="De-trended rate", color=DETRENDED_EDAC_COLOR)
-    ax3.plot(
-        df["date"],
-        df["standardized_rate"],
-        marker="o",
-        label="Standardized EDAC count rate",
-        color=STANDARDIZED_EDAC_COLOR
-    )
+    # ax3.plot(
+    #    df["date"],
+    #    df["standardized_rate"],
+    #    marker="o",
+    #    label="Standardized EDAC count rate",
+    #    color=STANDARDIZED_EDAC_COLOR
+    # )
     ax3.axhline(
         UPPER_THRESHOLD, label='threshold', color=THRESHOLD_COLOR
             )
@@ -292,7 +392,7 @@ def create_plots(file_path, date_list, folder_name):
     if not os.path.exists(file_path / folder_name):
         os.makedirs(file_path / folder_name)
     raw_edac = read_rawedac()
-    df = read_standardized_rates()
+    df = read_detrended_rates()
     count = 1
     for date in date_list:
         print("Date: ", date)
@@ -365,27 +465,47 @@ def create_plots(file_path, date_list, folder_name):
 
 
 def plot_histogram_rates():
+    # Figure for thesis
     """
     Plot histogram distribution
-    of standardized EDAC count rate"""
-    df = read_standardized_rates()
-    data = df["standardized_rate"]
-    binsize = 0.3
+    of detrended EDAC count rate"""
+    df = read_detrended_rates()
+    data = df["detrended_rate"]
+    print(df.sort_values(by='detrended_rate'))
+    # binsize = 0.3
     max_rate = np.max(data)
     min_rate = np.min(data)
-    bins = np.arange(
-        min_rate, max_rate + binsize, binsize
-    )  # Choose the size of the bins
-
-    counts, bin_edges = np.histogram(data, bins=bins,
+    # bins = np.arange(
+    #    min_rate, max_rate + binsize, binsize
+    # )  # Choose the size of the bins
+    bin_edges = np.arange(int(min_rate)-1, int(max_rate)+1, 0.5)
+    print("bin_Edges: ", bin_edges)
+    counts, bin_edges = np.histogram(data, bins=bin_edges,
                                      density=False)
     # bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    plt.figure(figsize=(10, 7))
+    plt.hist(data, bins=bin_edges, color=DETRENDED_EDAC_COLOR,
+             edgecolor="black")
+    plt.xticks(np.arange(int(min_rate)-1,
+                         int(max_rate)+1, 2))  # Major ticks every 1 unit
+    plt.gca().xaxis.set_minor_locator(
+        plt.MultipleLocator(1))  # Minor ticks every 0.5 unit
 
-    plt.figure()
-    plt.hist(data, bins=bin_edges, color="#4daf4a", edgecolor="black")
-    plt.title("Standardized rate distribution")
-    plt.xlabel("Standardized count rate")
-    plt.ylabel("Occurrences")
+    plt.gca().yaxis.set_minor_locator(
+        plt.MultipleLocator(100))  # Minor ticks every 5 units
+    plt.tick_params(which='major', length=10,
+                    labelsize=FONTSIZE_AXES_TICKS)  # Major ticks customization
+    plt.tick_params(which='minor', length=6,
+                    labelsize=FONTSIZE_AXES_TICKS)  # Major ticks customization
+    plt.axvline(x=1.5, label='Detrended count rate = 1.5',
+                color="#EE7733", linestyle='dashed')
+    plt.title("Detrended rate distribution",
+              fontsize=FONTSIZE_TITLE)
+    plt.xlabel("Detrended count rate [#/day]",
+               fontsize=FONTSIZE_AXES_LABELS)
+    plt.ylabel("Occurrences", fontsize=FONTSIZE_AXES_LABELS)
+    plt.legend(fontsize=12)
+    plt.grid()
     plt.show()
 
 
@@ -480,7 +600,7 @@ def create_sep_plots():
 
 def plot_stormy_detection():
     start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
-    df = read_standardized_rates()
+    df = read_detrended_rates()
     df_sun = process_sidc_ssn()
     index_exact = np.where(df_sun["date"] == start_date)[0][0]
     df_sun = df_sun.iloc[index_exact:]
@@ -672,7 +792,7 @@ def plot_real_eruption_dates():
     the de-trended rate for the CME eruption dates"""
     raw_edac = read_rawedac(
     )
-    standardized_df = read_standardized_rates()
+    standardized_df = read_detrended_rates()
     validation_df = read_cme_validation_results()
     folder_name = 'validation_result'
     if not os.path.exists(LOCAL_DIR / folder_name):
@@ -765,7 +885,7 @@ def plot_compare_sweets_validations():
 
     raw_edac = read_rawedac(
     )
-    standardized_df = read_standardized_rates()
+    standardized_df = read_detrended_rates()
 
     if not os.path.exists(LOCAL_DIR / folder_name):
         os.makedirs(LOCAL_DIR / folder_name)
@@ -850,7 +970,7 @@ def plot_real_sep_onsets():
     """
     raw_edac = read_rawedac(
     )
-    standardized_df = read_standardized_rates()
+    standardized_df = read_detrended_rates()
     validation_df = read_sep_validation_results()
     folder_name = 'validation_result'
     if not os.path.exists(SEP_VALIDATION_DIR / folder_name):
@@ -925,3 +1045,14 @@ def plot_real_sep_onsets():
 
         # plt.show()
         plt.close()
+
+
+if __name__ == "__main__":
+    # plot_raw_edac()
+    # plot_zero_set_correction()
+    # plot_rates_only()
+    # plot_rates_all()
+    # plot_histogram_rates()
+    startdate = datetime.strptime("2017-08-30", "%Y-%m-%d")
+    enddate = datetime.strptime("2017-10-01", "%Y-%m-%d")
+    show_timerange(startdate, enddate)
