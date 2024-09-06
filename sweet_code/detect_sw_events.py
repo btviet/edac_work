@@ -130,6 +130,13 @@ def read_stormy_sweet_dates():
     return df
 
 
+def read_sweet_event_dates():
+    df = pd.read_csv(SWEET_EVENTS_DIR / 'sweet_events.txt',
+                     skiprows=0, sep="\t", parse_dates=['date'])
+
+    return df
+
+
 def detect_edac_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
