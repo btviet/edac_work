@@ -102,7 +102,7 @@ def read_zero_df():
     return forbush_dates
 
 
-def merge_sep_fd():
+def create_stormy_days_list():
     sep_dates = read_all_sep_dates()
     forbush_dates = read_zero_df()
     spike_df = pd.concat([sep_dates, forbush_dates], ignore_index=True)
@@ -134,5 +134,6 @@ def detect_edac_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
     find_sep()
-    # find_forbush_decreases()
-    # merge_sep_fd()
+    find_forbush_decreases()
+    create_stormy_days_list()
+    create_sw_event_list()
