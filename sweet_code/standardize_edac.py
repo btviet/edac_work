@@ -1,7 +1,7 @@
 import time
 
 import pandas as pd
-from parameters import PROCESSED_DATA_DIR, RATE_SAVGOL
+from parameters import POLYORDER_SAVGOL, PROCESSED_DATA_DIR, RATE_SAVGOL
 from processing_edac import read_resampled_df
 from scipy.signal import savgol_filter
 
@@ -12,9 +12,8 @@ def savitzky_fit_gcr():
     to the EDAC count rates
     """
     rate_df = read_resampled_df()
-    savgolwindow = RATE_SAVGOL
-    polyorder = 2
-    y_filtered = savgol_filter(rate_df['daily_rate'], savgolwindow, polyorder)
+    y_filtered = savgol_filter(rate_df['daily_rate'],
+                               RATE_SAVGOL, POLYORDER_SAVGOL)
     rate_df['fit'] = y_filtered
     return rate_df
 
@@ -26,7 +25,7 @@ def create_detrended_rates():
     from the EDAC count rate
     """
     start_time = time.time()
-    print("Starting the de-trending process")
+    print("--------- Starting the de-trending process ---------")
     gcr_component = savitzky_fit_gcr()
     first_gcr = gcr_component['date'].iloc[0]
     last_gcr = gcr_component['date'].iloc[-1]
@@ -73,7 +72,7 @@ def create_standardized_rates():
     of the detrended EDAC count rates
     """
     start_time = time.time()
-    print("Starting the standardization process")
+    print("----------- Starting the standardization process ---------")
     detrended_df = read_detrended_rates()
     detrended_mean = detrended_df['detrended_rate'].mean()
     detrended_std = detrended_df['detrended_rate'].std()

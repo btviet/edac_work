@@ -5,11 +5,12 @@ from file_paths import get_data_dir
 
 load_dotenv()
 
-UPPER_THRESHOLD: Final = 1.5
+UPPER_THRESHOLD: Final = 2.5
 LOWER_THRESHOLD: Final = 0
 FD_NUMBER_DAYS: Final = 3
 SUNSPOTS_SAVGOL = 601
 RATE_SAVGOL = 1095
+POLYORDER_SAVGOL = 3
 
 LOCAL_DIR = get_data_dir()
 RAW_DATA_DIR = LOCAL_DIR / "raw_data/"
