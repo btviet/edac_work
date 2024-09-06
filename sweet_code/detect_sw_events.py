@@ -13,12 +13,24 @@ def find_sep():
     """
     df = read_detrended_rates()
     spike_df = df.copy()
-    peaks = spike_df[(spike_df['detrended_rate'] >= UPPER_THRESHOLD)]
+    peaks = spike_df[(spike_df['detrended_rate'] >= UPPER_THRESHOLD)].copy()
+
     # print("Peaks: ", peaks)
     # print("upper threshold: ", UPPER_THRESHOLD)
     print("The number of days above the threshold of ",
           UPPER_THRESHOLD, " is: ", len(peaks))
-    filename = "sep_edac.txt"
+    filename = "sep_dates_edac.txt"
+    peaks.to_csv(SWEET_EVENTS_DIR / filename,
+                 sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+
+    # Group the SEP dates into SEP events
+    peaks.loc[:, 'time_difference'] = peaks['date'].diff()
+
+    peaks = peaks[peaks['time_difference'] > pd.Timedelta(days=1)]
+    peaks = peaks.sort_values(by="time_difference")
+
+    filename = "sep_events_edac.txt"
     peaks.to_csv(SWEET_EVENTS_DIR / filename,
                  sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/{filename} created")
@@ -56,8 +68,17 @@ def find_forbush_decreases():
     print(f"File {SWEET_EVENTS_DIR}/forbush_decreases_edac.txt created")
 
 
-def read_sep_df():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_edac.txt',
+def read_sep_event_df():
+    df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_events_edac.txt',
+                     skiprows=0, sep="\t", parse_dates=['date'])
+    sep_dates = pd.DataFrame(df['date'],
+                             columns=['date'])
+    sep_dates['type'] = 'SEP'
+    return sep_dates
+
+
+def read_all_sep_dates():
+    df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_dates_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
     sep_dates = pd.DataFrame(df['date'],
                              columns=['date'])
@@ -73,13 +94,32 @@ def read_fd_df():
     return forbush_dates
 
 
+def read_zero_df():
+    df = pd.read_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
+                     skiprows=0, sep="\t", parse_dates=['date'])
+    forbush_dates = pd.DataFrame(df['date'], columns=['date'])
+    forbush_dates['type'] = 'Forbush'
+    return forbush_dates
+
+
 def merge_sep_fd():
-    sep_dates = read_sep_df()
-    forbush_dates = read_fd_df()
+    sep_dates = read_all_sep_dates()
+    forbush_dates = read_zero_df()
     spike_df = pd.concat([sep_dates, forbush_dates], ignore_index=True)
     spike_df = spike_df.sort_values(by='date')
     filename = "stormy_dates_edac.txt"
     spike_df.to_csv(SWEET_EVENTS_DIR / filename,
+                    sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+
+
+def create_sw_event_list():
+    sep_events = read_sep_event_df()
+    forbush_decreases = read_fd_df()
+    event_df = pd.concat([sep_events, forbush_decreases], ignore_index=True)
+    event_df = event_df.sort_values(by="date")
+    filename = "sweet_events.txt"
+    event_df.to_csv(SWEET_EVENTS_DIR / filename,
                     sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/{filename} created")
 
@@ -94,5 +134,5 @@ def detect_edac_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
     find_sep()
-    find_forbush_decreases()
-    merge_sep_fd()
+    # find_forbush_decreases()
+    # merge_sep_fd()
