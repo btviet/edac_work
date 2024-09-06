@@ -34,7 +34,7 @@ def find_forbush_decreases():
     zero_mask = (resampled_df['daily_rate'] == 0)
     df = pd.DataFrame(zero_mask)
     df.rename(columns={'daily_rate': 'zero_rate'}, inplace=True)
-    df["datetime"] = resampled_df["date"]
+    df["date"] = resampled_df["date"]
     # Group the sequences of Trues and Falses together
     df['group'] = (df['zero_rate'] != df['zero_rate'].shift()).cumsum()
     # Keep the groups which have zero rates
@@ -43,13 +43,13 @@ def find_forbush_decreases():
     df["duration"] = df.groupby('group')['zero_rate'].transform('size')
     # Keep only the days that are 0 for at least FD_NUMBER_DAYS days
     df = df[df["duration"] >= FD_NUMBER_DAYS]
-    df[["datetime", "group"]].to_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
-                                     sep='\t', index=False)  # Save to file
+    df[["date", "group"]].to_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
+                                 sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/zerodays.txt created")
     # Keep only the first dates in each Forbush decrease
     df_grouped = df.groupby('group').first().reset_index()
 
-    df_grouped[["datetime", "duration"]].to_csv(
+    df_grouped[["date", "duration"]].to_csv(
         SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
         sep='\t', index=False)  # Save to file
 
@@ -84,20 +84,8 @@ def merge_sep_fd():
     print(f"File {SWEET_EVENTS_DIR}/{filename} created")
 
 
-def read_forbush_sweet_dates():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
-                     skiprows=0, sep="\t", parse_dates=['date'])
-    return df
-
-
 def read_stormy_sweet_dates():
     df = pd.read_csv(SWEET_EVENTS_DIR / 'stormy_dates_edac.txt',
-                     skiprows=0, sep="\t", parse_dates=['date'])
-    return df
-
-
-def read_sep_sweet_dates():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
     return df
 
@@ -105,6 +93,6 @@ def read_sep_sweet_dates():
 def detect_edac_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
-    # find_sep()
+    find_sep()
     find_forbush_decreases()
-    # merge_sep_fd()
+    merge_sep_fd()
