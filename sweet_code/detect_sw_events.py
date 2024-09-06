@@ -3,17 +3,21 @@ import os
 import pandas as pd
 from parameters import FD_NUMBER_DAYS, SWEET_EVENTS_DIR, UPPER_THRESHOLD
 from processing_edac import read_resampled_df
-from standardize_edac import read_standardized_rates
+from standardize_edac import read_detrended_rates
 
 
 def find_sep():
     """
-    Find the dates in standardized EDAC count rate
+    Find the dates in detrended EDAC count rate
     where the it is above the upper threshold
     """
-    df = read_standardized_rates()
+    df = read_detrended_rates()
     spike_df = df.copy()
-    peaks = spike_df[(spike_df['standardized_rate'] >= UPPER_THRESHOLD)]
+    peaks = spike_df[(spike_df['detrended_rate'] >= UPPER_THRESHOLD)]
+    # print("Peaks: ", peaks)
+    # print("upper threshold: ", UPPER_THRESHOLD)
+    print("The number of days above the threshold of ",
+          UPPER_THRESHOLD, " is: ", len(peaks))
     filename = "sep_edac.txt"
     peaks.to_csv(SWEET_EVENTS_DIR / filename,
                  sep='\t', index=False)  # Save to file
@@ -23,29 +27,32 @@ def find_sep():
 def find_forbush_decreases():
     """
     Find the dates where the EDAC count rate
-    is 0 for more than FD_NUMBER_DAYS days"""
-    df = read_resampled_df()
-    zero_mask = (df['daily_rate'] == 0)
-    consecutive_zeros = zero_mask.rolling(window=FD_NUMBER_DAYS).sum()
-    rows_with_consecutive_zeros = consecutive_zeros == FD_NUMBER_DAYS
-    rows_indices = \
-        rows_with_consecutive_zeros[rows_with_consecutive_zeros].index
-    result_indices = rows_indices - (FD_NUMBER_DAYS - 1)
+    is 0 for more than FD_NUMBER_DAYS days
+    """
+    resampled_df = read_resampled_df()
 
-    # Return the corresponding rows
-    zerodays_df = (df.iloc[result_indices])
+    zero_mask = (resampled_df['daily_rate'] == 0)
+    df = pd.DataFrame(zero_mask)
+    df.rename(columns={'daily_rate': 'zero_rate'}, inplace=True)
+    df["datetime"] = resampled_df["date"]
+    # Group the sequences of Trues and Falses together
+    df['group'] = (df['zero_rate'] != df['zero_rate'].shift()).cumsum()
+    # Keep the groups which have zero rates
+    df = df[df['zero_rate']]
 
-    # Dates included in a consecutive zero days sequence
-    zerodays_df.loc[:, 'time_difference'] = \
-        zerodays_df['date'].diff().fillna(pd.Timedelta(days=1.1))
-    # The starting date of each Forbush Decrease
-    first_date_df = zerodays_df[zerodays_df['time_difference'] >
-                                pd.Timedelta(days=1)]
-    zerodays_df.to_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
-                       sep='\t', index=False)  # Save to file
+    df["duration"] = df.groupby('group')['zero_rate'].transform('size')
+    # Keep only the days that are 0 for at least FD_NUMBER_DAYS days
+    df = df[df["duration"] >= FD_NUMBER_DAYS]
+    df[["datetime", "group"]].to_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
+                                     sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/zerodays.txt created")
-    first_date_df.to_csv(SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
-                         sep='\t', index=False)  # Save to file
+    # Keep only the first dates in each Forbush decrease
+    df_grouped = df.groupby('group').first().reset_index()
+
+    df_grouped[["datetime", "duration"]].to_csv(
+        SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
+        sep='\t', index=False)  # Save to file
+
     print(f"File {SWEET_EVENTS_DIR}/forbush_decreases_edac.txt created")
 
 
@@ -98,6 +105,6 @@ def read_sep_sweet_dates():
 def detect_edac_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
-    find_sep()
+    # find_sep()
     find_forbush_decreases()
-    merge_sep_fd()
+    # merge_sep_fd()
