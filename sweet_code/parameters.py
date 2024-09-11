@@ -19,6 +19,7 @@ SWEET_EVENTS_DIR = LOCAL_DIR / "edac_events/"
 OLD_SWEET_DIR = LOCAL_DIR / "old_sweet/"
 SEP_VALIDATION_DIR = LOCAL_DIR / "sep_validation/"
 CME_VALIDATION_DIR = LOCAL_DIR / "cme_validation/"
+DATABASE_DIR = LOCAL_DIR / "database/"
 FORBUSH_VALIDATION_DIR = LOCAL_DIR / "forbush_validation/"
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
 RAW_EDAC_COLOR = "#0077BB"
