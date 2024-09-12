@@ -61,19 +61,54 @@ def create_resampled_edac():
      and save the resulting dataframe to a textfile
      """
     start_time = time.time()
-    print('Starting the resampling to a daily frequency process')
+    print('---- Starting the resampling to a daily frequency process ----')
     zerosetcorrected_df = read_zero_set_correct()
     zerosetcorrected_df = zerosetcorrected_df.set_index('datetime')
 
-    last_df = zerosetcorrected_df.resample('D').last().ffill()
-    df_resampled = zerosetcorrected_df.resample('D').first().ffill()
+    last_df = zerosetcorrected_df.resample('D').last()
+    df_resampled = zerosetcorrected_df.resample('D').first()
     df_resampled.reset_index(inplace=True)
     last_df.reset_index(inplace=True)
     df_resampled['edac_last'] = last_df['edac']
     df_resampled.rename(columns={'datetime': 'date', 'edac': 'edac_first'},
                         inplace=True)
-    df_resampled['daily_rate'] = df_resampled['edac_last']\
-        - df_resampled['edac_first']
+    df_resampled['daily_rate'] = np.nan  # Initialize daily rate column
+    # Treat gaps
+    nan_indices = df_resampled.loc[df_resampled["edac_first"].isna()].index
+    nan_sequences = []
+    group = [nan_indices[0]]  # Start the first group with the first element
+
+    for i in range(1, len(nan_indices)):
+        if nan_indices[i] - nan_indices[i - 1] == 1:
+            # Check if the current number is consecutive
+            group.append(nan_indices[i])
+        else:
+            nan_sequences.append(group)
+            group = [nan_indices[i]]
+    nan_sequences.append(group)
+
+    for sequence in nan_sequences:
+        last_reading = df_resampled.iloc[sequence[0]-1]["edac_last"]
+        next_reading = df_resampled.iloc[sequence[-1]+1]["edac_first"]
+
+        mean = (next_reading-last_reading)/len(sequence)
+
+        df_resampled.loc[sequence, 'daily_rate'] = mean
+
+        # First date after a NaN sequence gets a daily rate
+        # by subtracting the last reading and the first reading
+        # for the day
+        df_resampled.at[sequence[-1] + 1, 'daily_rate'] = \
+            (
+            df_resampled.at[sequence[-1] + 1, 'edac_last'] -
+            df_resampled.at[sequence[-1] + 1, 'edac_first']
+            )
+
+    # For all remaining rows, the daily rate is the difference
+    # between the last reading and the previous last reading
+    df_resampled.loc[df_resampled['daily_rate'].isna(), 'daily_rate'] = \
+        df_resampled['edac_last'].diff()
+
     # Set datetime of each date to noon
     df_resampled['date'] = df_resampled['date']+pd.Timedelta(hours=12)
     filename = 'resampled_corrected_edac.txt'
@@ -87,4 +122,9 @@ def process_raw_edac():
     if not os.path.exists(PROCESSED_DATA_DIR):
         os.makedirs(PROCESSED_DATA_DIR)
     create_zero_set_correct()
+    create_resampled_edac()
+
+
+if __name__ == "__main__":
+    # create_zero_set_correct()
     create_resampled_edac()
