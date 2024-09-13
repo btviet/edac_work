@@ -21,6 +21,8 @@ SEP_VALIDATION_DIR = LOCAL_DIR / "sep_validation/"
 CME_VALIDATION_DIR = LOCAL_DIR / "cme_validation/"
 DATABASE_DIR = LOCAL_DIR / "database/"
 FORBUSH_VALIDATION_DIR = LOCAL_DIR / "forbush_validation/"
+SWEET_VALIDATION_DIR = LOCAL_DIR / "sweet_validation"
+TOOLS_OUTPUT_DIR = LOCAL_DIR / "tools_output/"
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
 RAW_EDAC_COLOR = "#0077BB"
 RATE_EDAC_COLOR = "#33BBEE"
