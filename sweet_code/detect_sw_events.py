@@ -1,27 +1,39 @@
 import os
 
 import pandas as pd
+from detrend_edac import read_detrended_rates
 from parameters import FD_NUMBER_DAYS, SWEET_EVENTS_DIR, UPPER_THRESHOLD
 from processing_edac import read_resampled_df
-from standardize_edac import read_detrended_rates
+
+sep_dates_filename = 'sweet_sep_dates.txt'
+sep_events_filename = 'sep_events_sweet.txt'
+extra_sep_days_filename = 'extra_sweet_sep_days.txt'
+extra_sep_events_filename = 'extra_sweet_sep_events.txt'
+zerodays_filename = 'sweet_zerodays.txt'
+forbush_decrease_events_filename = 'sweet_forbush_decreases.txt'
+sweet_events_filename = 'sweet_events.txt'
+stormy_days_filename = 'sweet_stormy_days.txt'
 
 
-def find_sep():
+def find_sweet_sep():
     """
-    Find the dates in detrended EDAC count rate
-    where it is above the upper threshold
+    Find the dates where detrended EDAC count rate
+    exceeds the UPPER_THRESHOLD.
+    Group them into SEP events with the duration
+    (duration = number of consecutive days above UPPER_THRESHOLD)
+    and mean value
     """
+    print("----- Finding SEP events in the EDAC data --------")
     df = read_detrended_rates()
     spike_df = df.copy()
-    peaks = spike_df[(spike_df['detrended_rate'] >= UPPER_THRESHOLD)].copy()
+    peaks = spike_df[(spike_df['detrended_rate'] > UPPER_THRESHOLD)].copy()
     peaks = peaks.sort_values(by='date')
 
     print("The number of days above the threshold of ",
           UPPER_THRESHOLD, " is: ", len(peaks))
-    filename = "sep_dates_edac.txt"
-    peaks.to_csv(SWEET_EVENTS_DIR / filename,
+    peaks.to_csv(SWEET_EVENTS_DIR / sep_dates_filename,
                  sep='\t', index=False)  # Save to file
-    print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+    print(f"File {SWEET_EVENTS_DIR}\\{sep_dates_filename} created")
     # Group the SEP dates into SEP events
     # And find the duration of each SEP event
     # Duration = number of consecutive days above UPPER_THRESHOLD
@@ -32,48 +44,33 @@ def find_sep():
     event_df = peaks.groupby('group').agg(
         start_date=('date', 'first'),
         duration=('diff', lambda x: x.notna().sum()),
-        mean_value=('detrended_rate', 'mean')
-        # Calculate the mean for the group
+        mean_value=('detrended_rate', 'mean'),
+        max_value=('detrended_rate', 'max')
 
     ).reset_index(drop=True)
     event_df.loc[0, 'duration'] = 1
-
-    print(event_df)
+    event_df.rename(columns={'mean_value': 'mean_rate',
+                             'max_value': 'max_rate'}, inplace=True)
+    event_df.to_csv(SWEET_EVENTS_DIR / sep_events_filename,
+                    sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}\\{sep_events_filename} created")
 
     # peaks.loc[:, 'time_difference'] = peaks['date'].diff()
     # print(peaks[peaks['time_difference'] <= pd.Timedelta(days=1)])
-    filename = "sep_events_edac.txt"
+
     # peaks.to_csv(SWEET_EVENTS_DIR / filename,
     #             sep='\t', index=False)  # Save to file
     # print(f"File {SWEET_EVENTS_DIR}/{filename} created")
 
 
-def find_duration_sep_events():
-    event_df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_events_edac.txt',
-                           skiprows=0, sep="\t", parse_dates=['date'])
-    stormy_df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_dates_edac.txt',
-                            skiprows=0, sep="\t", parse_dates=['date'])
-    stormy_df['diff'] = stormy_df['date'].diff().dt.days
-    print(stormy_df)
-    # Identify the sequences where the difference is 1 day or less
-    stormy_df['group'] = (stormy_df['diff'] != 1).cumsum()
-    print(stormy_df)
-    # Group by the sequences and get the first date
-    # and the duration (last date - first date + 1 day)
-    event_df = stormy_df.groupby('group').agg(
-        start_date=('date', 'first'),
-        duration=('diff', lambda x: x.notna().sum())
-        # Count number of days in the sequence
-    ).reset_index(drop=True)
-    event_df.loc[0, 'duration'] = 1
-    print(event_df)
-
-
-def add_lenient_seps():
+def find_sweet_sep_by_consecutive_days():
     """
-    SEP events occur also when detrended rates are above $0$
+    Find SEP events by finding the dates where
+    the detrended rates are above $0$
     for at least three days
     """
+    print("----- Finding SEP events (second method) \
+          in the EDAC data --------")
     detrended_df = read_detrended_rates()
     rate_mask = (detrended_df['detrended_rate'] > 0)
     df = pd.DataFrame(rate_mask)
@@ -83,18 +80,33 @@ def add_lenient_seps():
                    df['detrended_rate'].shift()).cumsum()
     df = df[df['detrended_rate']]
     df["duration"] = df.groupby('group')['detrended_rate'].transform('size')
+
     df = df[df["duration"] >= 3]
+    print(f'The number of extra SEP days: {len(df)}')
+    df.to_csv(SWEET_EVENTS_DIR / extra_sep_days_filename,
+              sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}\\{extra_sep_days_filename} created")
+
     df_grouped = df.groupby('group').first().reset_index()
-    print(df_grouped)
-    file_name = 'extra_sep_days.txt'
+    print(f'The number of extra SEP events: {len(df_grouped)}')
     df_grouped[["date", "duration"]].to_csv(
-        SWEET_EVENTS_DIR / file_name,
+        SWEET_EVENTS_DIR / extra_sep_events_filename,
         sep='\t', index=False)  # Save to file
-    print(f"File {SWEET_EVENTS_DIR}/ {file_name} created")
+    print(f"File {SWEET_EVENTS_DIR}/ {extra_sep_events_filename} created")
 
 
-def read_lenient_sep():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'extra_sep_days.txt',
+def read_extra_sweet_sep_events():
+    """
+    Returns a Pandas DataFrame
+    with the dates where the
+    detrended count rates have been above 0
+    for at least three days
+    Columns:
+        date: Date at noon
+        duration: how long the count rates were above 0
+        type: SEP or Fd. Here it is always SEP.
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / extra_sep_events_filename,
                      skiprows=0, sep="\t", parse_dates=['date'])
     sep_df = pd.DataFrame(df[['date', 'duration']],
                           columns=['date', 'duration'])
@@ -102,13 +114,14 @@ def read_lenient_sep():
     return sep_df
 
 
-def find_forbush_decreases():
+def find_sweet_forbush_decreases():
     """
     Find the dates where the EDAC count rate
     is 0 for more than FD_NUMBER_DAYS days
     """
+    print("------ Finding SWEET Forbush decreases --------")
     resampled_df = read_resampled_df()
-
+    print("resampled_df: ", resampled_df)
     zero_mask = (resampled_df['daily_rate'] == 0)
     df = pd.DataFrame(zero_mask)
     df.rename(columns={'daily_rate': 'zero_rate'}, inplace=True)
@@ -117,112 +130,193 @@ def find_forbush_decreases():
     df['group'] = (df['zero_rate'] != df['zero_rate'].shift()).cumsum()
     # Keep the groups which have zero rates
     df = df[df['zero_rate']]
-
     df["duration"] = df.groupby('group')['zero_rate'].transform('size')
     # Keep only the days that are 0 for at least FD_NUMBER_DAYS days
     df = df[df["duration"] >= FD_NUMBER_DAYS]
-    df[["date", "group"]].to_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
-                                 sep='\t', index=False)  # Save to file
-    print(f"File {SWEET_EVENTS_DIR}/zerodays.txt created")
+    detrended_df = read_detrended_rates()
+    result = pd.merge(df, detrended_df, on='date', how='left')
+    result.drop(columns=["group", "duration", "zero_rate"], inplace=True)
+    result.to_csv(SWEET_EVENTS_DIR / zerodays_filename,
+                  sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}\\ {zerodays_filename} created")
     # Keep only the first dates in each Forbush decrease
     df_grouped = df.groupby('group').first().reset_index()
-
     df_grouped[["date", "duration"]].to_csv(
-        SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
+        SWEET_EVENTS_DIR / forbush_decrease_events_filename,
         sep='\t', index=False)  # Save to file
-
-    print(f"File {SWEET_EVENTS_DIR}/forbush_decreases_edac.txt created")
-
-
-def read_sep_event_df():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_events_edac.txt',
-                     skiprows=0, sep="\t", parse_dates=['date'])
-
-    sep_dates = pd.DataFrame(df[['date', "detrended_rate"]],
-                             columns=['date', 'detrended_rate'])
-    sep_dates['type'] = 'SEP'
-    return sep_dates
+    print(f"File {SWEET_EVENTS_DIR}\\ {forbush_decrease_events_filename} \
+          created")
 
 
-def read_all_sep_dates():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_dates_edac.txt',
-                     skiprows=0, sep="\t", parse_dates=['date'])
-    sep_dates = pd.DataFrame(df[['date', "detrended_rate"]],
-                             columns=['date', "detrended_rate"])
-    sep_dates['type'] = 'SEP'
-    return sep_dates
-
-
-def combine_lenient_sep_with_seplist():
-    df1 = read_lenient_sep()
-    df2 = read_sep_event_df()
-    print(df1)
-    print(df2)
-    df = pd.concat([df1[['date', 'type']], df2[['date', 'type']]])
-    print(df)
+def read_sweet_sep_events():
+    """
+    Returns a Pandas Dataframe with the
+    start dates of each SWEET SEP event,
+    and the duration
+    Columns:
+        start_date: Date at noon
+        duration: how many days above UPPER_THRESHOLD
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / sep_events_filename,
+                     skiprows=0, sep="\t", parse_dates=['start_date'])
+    df['type'] = 'SEP'
+    # print(df['duration'].value_counts())
     return df
 
 
-def read_fd_df():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
+def read_sweet_sep_dates():
+    """
+    Returns a Pandas DataFrame with all
+    dates that are a part of a SWEET SEP event
+    Columns:
+        date: Date at noon
+        edac_first: First EDAC reading
+        edac_last: Last EDAC reading
+        daily_rate: daily rate
+        gcr_component: the Savitzky-Golay fit of daily_rate
+        detrended_rate: daily_rate subtracted by gcr_component
+        type: SEP/FD, it is SEP here
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / sep_dates_filename,
                      skiprows=0, sep="\t", parse_dates=['date'])
-    forbush_dates = pd.DataFrame(df[['date', 'duration']],
-                                 columns=['date', 'duration'])
-    forbush_dates['type'] = 'Fd'
-    return forbush_dates
+    df['type'] = 'SEP'
+
+    # sep_dates = pd.DataFrame(df[['date', "detrended_rate"]],
+    #                         columns=['date', "detrended_rate"])
+    # sep_dates['type'] = 'SEP'
+    # print(sep_dates)
+    return df
 
 
-def read_zero_df():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'zerodays.txt',
+def combine_sweet_sep_event_detection_methods():
+    """
+    Returns a Pandas Dataframe
+    with all SWEET SEP events from both detection
+    methods
+    """
+    df1 = read_extra_sweet_sep_events()
+    df2 = read_sweet_sep_events()
+    df = pd.concat([df1[['date', 'type']], df2[['date', 'type']]])
+    df.sort_values(by='date', inplace=True)
+    return df
+
+
+def read_sweet_forbush_decreases():
+    """
+    Returns a Pandas Dataframe with
+    the first dates of all
+    Forbush decreases found by SWEET
+    Columns:
+        date: Date at noon
+        duration: How many consecutive days with 0 rate
+        type: SEP/Fd. Here it is Fd
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / forbush_decrease_events_filename,
                      skiprows=0, sep="\t", parse_dates=['date'])
-    forbush_dates = pd.DataFrame(df['date'], columns=['date'])
-    forbush_dates['type'] = 'Forbush'
-    return forbush_dates
+    df['type'] = 'Fd'
+    return df
+
+
+def read_sweet_zero_days():
+    """
+    Returns a Pandas DataFrame
+    Columns:
+        date: datetime at noon
+        type: SEP/Fd. It is Fd here.
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / zerodays_filename,
+                     skiprows=0, sep="\t", parse_dates=['date'])
+    # forbush_dates = pd.DataFrame(df['date'], columns=['date'])
+    # forbush_dates['type'] = 'Fd'
+    df['type'] = 'Fd'
+    return df
 
 
 def create_stormy_days_list():
-    sep_dates = read_all_sep_dates()
-    forbush_dates = read_zero_df()
-    spike_df = pd.concat([sep_dates, forbush_dates], ignore_index=True)
-    spike_df = spike_df.sort_values(by='date')
-    filename = "stormy_dates_edac.txt"
-    spike_df.to_csv(SWEET_EVENTS_DIR / filename,
-                    sep='\t', index=False)  # Save to file
-    print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+    sep_dates = read_sweet_sep_dates()
+    forbush_dates = read_sweet_zero_days()
+    stormy_df = pd.concat([sep_dates, forbush_dates], ignore_index=True)
+    stormy_df = stormy_df.sort_values(by='date')
+    stormy_df.to_csv(SWEET_EVENTS_DIR / stormy_days_filename,
+                     sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}/{stormy_days_filename} created")
 
 
 def create_sw_event_list():
-    sep_events = read_sep_event_df()
-    forbush_decreases = read_fd_df()
+    """
+    Combine the SWEET SEP events
+    and the SWEET Forbush decreases
+    into one Pandas DataFrame
+    """
+    sep_events = read_sweet_sep_events()
+    sep_events = sep_events.drop(columns=['mean_rate', 'max_rate'])
+    sep_events.rename(columns={"start_date": "date"}, inplace=True)
+    forbush_decreases = read_sweet_forbush_decreases()
     event_df = pd.concat([sep_events, forbush_decreases], ignore_index=True)
     event_df = event_df.sort_values(by="date")
-    filename = "sweet_events.txt"
-    event_df.to_csv(SWEET_EVENTS_DIR / filename,
+
+    event_df.to_csv(SWEET_EVENTS_DIR / sweet_events_filename,
                     sep='\t', index=False)  # Save to file
-    print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+    print(f"File {SWEET_EVENTS_DIR}/{sweet_events_filename} created")
 
 
 def read_stormy_sweet_dates():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'stormy_dates_edac.txt',
+    """
+    Returns a Pandas DataFrame
+    with all stormy dates found by SWEET,
+    including those parts of SEP events and
+    Forbush decreases.
+    Columns:
+        date: Datetime at noon
+        edac_first: First EDAC reading of the day
+        edac_last: Last EDAC reading of the day
+        daily_rate: daily count rate
+        gcr_component: Savitzky-Golay fit of daily_rate
+        detrended_rate: daily_rate subtracted the gcr_component
+        type: SEP / Fd
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / stormy_days_filename,
                      skiprows=0, sep="\t", parse_dates=['date'])
     return df
 
 
 def read_sweet_event_dates():
-    df = pd.read_csv(SWEET_EVENTS_DIR / 'sweet_events.txt',
+    """
+    Returns a Pandas DataFrame
+    with all SWEET events, including
+    SEP events and Forbush decreases
+    Columns:
+        date: Starting date at noon for each event
+        duration: duration in days
+        type: SEP/Fd
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / sweet_events_filename,
                      skiprows=0, sep="\t", parse_dates=['date'])
-
     return df
 
 
-def detect_edac_events():
+def detect_sweet_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
-    find_sep()
-    find_forbush_decreases()
+    find_sweet_sep()
+    find_sweet_forbush_decreases()
     create_stormy_days_list()
     create_sw_event_list()
 
 
 if __name__ == "__main__":
-    find_sep()
+    # find_sweet_sep_by_consecutive_days()
+    # find_sweet_sep()
+    # read_second_method_sweet_sep()
+    # find_sweet_forbush_decreases()
+    # read_sweet_sep_events()
+    # read_sweet_fds()
+    # read_sweet_forbush_decreases()
+    # read_sweet_sep_events()
+    # read_sweet_sep_dates()
+    # read_sweet_zero_days()
+    # create_sw_event_list()
+    # read_sweet_event_dates()
+    # find_sweet_forbush_decreases()
+    # create_stormy_days_list()
+    read_sweet_event_dates()
