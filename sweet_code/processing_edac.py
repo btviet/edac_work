@@ -10,13 +10,27 @@ load_dotenv()
 
 
 def read_rawedac():
-    # Reads the patched MEX EDAC
+    """
+    Returns a Pandas DataFrame with the
+    patched MEX EDAC.
+    Columns:
+        datetime: datetime of the reading
+        edac: sampled value
+
+    """
     df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac.txt",
                      skiprows=0, sep="\t", parse_dates=['datetime'])
     return df
 
 
 def read_zero_set_correct():
+    """
+    Returns a Pandas Dataframe with
+    the zeroset-corrected EDAC
+    Columns:
+        datetime: datetime of the reading
+        edac: zeroset-corrected EDAC value
+    """
     df = pd.read_csv(
         PROCESSED_DATA_DIR / 'zerosetcorrected_edac.txt',
         skiprows=0, sep="\t", parse_dates=['datetime'])
@@ -24,14 +38,25 @@ def read_zero_set_correct():
 
 
 def read_resampled_df():
-    # Retrieves the resampled and zeroset corrected edac
+    """
+    Returns a Pandas DataFrame
+    with the the resampled and zeroset corrected edac
+    Columns:
+        date: date set at noon every day
+        edac_first: the value of EDAC counter
+        edac_last: the last value of the EDAC counter for that day
+        daily_rate: the difference between the current
+                and the previous consecutive edac_last
+    """
     df = pd.read_csv(PROCESSED_DATA_DIR / 'resampled_corrected_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
     return df
 
 
 def create_zero_set_correct():
-    # Create the zero-set corrected dataframe of the raw EDAC counter
+    """
+    Create the zero-set corrected dataframe of the raw EDAC counter
+    """
     start_time = time.time()
     print("--------- Starting the zeroset correction ---------")
     df = read_rawedac()
@@ -108,6 +133,12 @@ def create_resampled_edac():
     # between the last reading and the previous last reading
     df_resampled.loc[df_resampled['daily_rate'].isna(), 'daily_rate'] = \
         df_resampled['edac_last'].diff()
+
+    # Set the count rate for the first date in the data set
+    df_resampled.at[0, 'daily_rate'] = \
+        (
+        df_resampled.at[0, 'edac_last'] -
+        df_resampled.at[0, 'edac_first'])
 
     # Set datetime of each date to noon
     df_resampled['date'] = df_resampled['date']+pd.Timedelta(hours=12)
