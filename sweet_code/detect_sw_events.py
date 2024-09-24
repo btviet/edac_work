@@ -9,31 +9,97 @@ from standardize_edac import read_detrended_rates
 def find_sep():
     """
     Find the dates in detrended EDAC count rate
-    where the it is above the upper threshold
+    where it is above the upper threshold
     """
     df = read_detrended_rates()
     spike_df = df.copy()
     peaks = spike_df[(spike_df['detrended_rate'] >= UPPER_THRESHOLD)].copy()
+    peaks = peaks.sort_values(by='date')
 
-    # print("Peaks: ", peaks)
-    # print("upper threshold: ", UPPER_THRESHOLD)
     print("The number of days above the threshold of ",
           UPPER_THRESHOLD, " is: ", len(peaks))
     filename = "sep_dates_edac.txt"
     peaks.to_csv(SWEET_EVENTS_DIR / filename,
                  sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/{filename} created")
-
     # Group the SEP dates into SEP events
-    peaks.loc[:, 'time_difference'] = peaks['date'].diff()
+    # And find the duration of each SEP event
+    # Duration = number of consecutive days above UPPER_THRESHOLD
+    peaks['diff'] = peaks['date'].diff().dt.days
+    # Identify the sequences where the difference is 1 day or less
+    peaks['group'] = (peaks['diff'] != 1).cumsum()
 
-    peaks = peaks[peaks['time_difference'] > pd.Timedelta(days=1)]
-    peaks = peaks.sort_values(by="time_difference")
+    event_df = peaks.groupby('group').agg(
+        start_date=('date', 'first'),
+        duration=('diff', lambda x: x.notna().sum()),
+        mean_value=('detrended_rate', 'mean')
+        # Calculate the mean for the group
 
+    ).reset_index(drop=True)
+    event_df.loc[0, 'duration'] = 1
+
+    print(event_df)
+
+    # peaks.loc[:, 'time_difference'] = peaks['date'].diff()
+    # print(peaks[peaks['time_difference'] <= pd.Timedelta(days=1)])
     filename = "sep_events_edac.txt"
-    peaks.to_csv(SWEET_EVENTS_DIR / filename,
-                 sep='\t', index=False)  # Save to file
-    print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+    # peaks.to_csv(SWEET_EVENTS_DIR / filename,
+    #             sep='\t', index=False)  # Save to file
+    # print(f"File {SWEET_EVENTS_DIR}/{filename} created")
+
+
+def find_duration_sep_events():
+    event_df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_events_edac.txt',
+                           skiprows=0, sep="\t", parse_dates=['date'])
+    stormy_df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_dates_edac.txt',
+                            skiprows=0, sep="\t", parse_dates=['date'])
+    stormy_df['diff'] = stormy_df['date'].diff().dt.days
+    print(stormy_df)
+    # Identify the sequences where the difference is 1 day or less
+    stormy_df['group'] = (stormy_df['diff'] != 1).cumsum()
+    print(stormy_df)
+    # Group by the sequences and get the first date
+    # and the duration (last date - first date + 1 day)
+    event_df = stormy_df.groupby('group').agg(
+        start_date=('date', 'first'),
+        duration=('diff', lambda x: x.notna().sum())
+        # Count number of days in the sequence
+    ).reset_index(drop=True)
+    event_df.loc[0, 'duration'] = 1
+    print(event_df)
+
+
+def add_lenient_seps():
+    """
+    SEP events occur also when detrended rates are above $0$
+    for at least three days
+    """
+    detrended_df = read_detrended_rates()
+    rate_mask = (detrended_df['detrended_rate'] > 0)
+    df = pd.DataFrame(rate_mask)
+    df["date"] = detrended_df["date"]
+    # Group the sequences of Trues and Falses together
+    df['group'] = (df['detrended_rate'] !=
+                   df['detrended_rate'].shift()).cumsum()
+    df = df[df['detrended_rate']]
+    df["duration"] = df.groupby('group')['detrended_rate'].transform('size')
+    df = df[df["duration"] >= 3]
+    df_grouped = df.groupby('group').first().reset_index()
+    print(df_grouped)
+    file_name = 'extra_sep_days.txt'
+    df_grouped[["date", "duration"]].to_csv(
+        SWEET_EVENTS_DIR / file_name,
+        sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}/ {file_name} created")
+
+
+def read_lenient_sep():
+    df = pd.read_csv(SWEET_EVENTS_DIR / 'extra_sep_days.txt',
+                     skiprows=0, sep="\t", parse_dates=['date'])
+    sep_df = pd.DataFrame(df[['date', 'duration']],
+                          columns=['date', 'duration'])
+    sep_df['type'] = 'SEP'
+    return sep_df
 
 
 def find_forbush_decreases():
@@ -71,8 +137,9 @@ def find_forbush_decreases():
 def read_sep_event_df():
     df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_events_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
-    sep_dates = pd.DataFrame(df['date'],
-                             columns=['date'])
+
+    sep_dates = pd.DataFrame(df[['date', "detrended_rate"]],
+                             columns=['date', 'detrended_rate'])
     sep_dates['type'] = 'SEP'
     return sep_dates
 
@@ -80,17 +147,28 @@ def read_sep_event_df():
 def read_all_sep_dates():
     df = pd.read_csv(SWEET_EVENTS_DIR / 'sep_dates_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
-    sep_dates = pd.DataFrame(df['date'],
-                             columns=['date'])
+    sep_dates = pd.DataFrame(df[['date', "detrended_rate"]],
+                             columns=['date', "detrended_rate"])
     sep_dates['type'] = 'SEP'
     return sep_dates
+
+
+def combine_lenient_sep_with_seplist():
+    df1 = read_lenient_sep()
+    df2 = read_sep_event_df()
+    print(df1)
+    print(df2)
+    df = pd.concat([df1[['date', 'type']], df2[['date', 'type']]])
+    print(df)
+    return df
 
 
 def read_fd_df():
     df = pd.read_csv(SWEET_EVENTS_DIR / 'forbush_decreases_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
-    forbush_dates = pd.DataFrame(df['date'], columns=['date'])
-    forbush_dates['type'] = 'Forbush'
+    forbush_dates = pd.DataFrame(df[['date', 'duration']],
+                                 columns=['date', 'duration'])
+    forbush_dates['type'] = 'Fd'
     return forbush_dates
 
 
@@ -144,3 +222,7 @@ def detect_edac_events():
     find_forbush_decreases()
     create_stormy_days_list()
     create_sw_event_list()
+
+
+if __name__ == "__main__":
+    find_sep()
