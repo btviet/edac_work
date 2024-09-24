@@ -83,7 +83,10 @@ def create_resampled_edac():
     """
      Resamples the zero set corrected EDAC counter
      to have one reading each day,
-     and save the resulting dataframe to a textfile
+     and save the resulting dataframe to a textfile.
+     The daily rate is calculated by taking
+     the difference between two consecutive
+     last readings.
      """
     start_time = time.time()
     print('---- Starting the resampling to a daily frequency process ----')
@@ -98,6 +101,7 @@ def create_resampled_edac():
     df_resampled.rename(columns={'datetime': 'date', 'edac': 'edac_first'},
                         inplace=True)
     df_resampled['daily_rate'] = np.nan  # Initialize daily rate column
+
     # Treat gaps
     nan_indices = df_resampled.loc[df_resampled["edac_first"].isna()].index
     nan_sequences = []
@@ -113,13 +117,17 @@ def create_resampled_edac():
     nan_sequences.append(group)
 
     for sequence in nan_sequences:
+        """
+        For each gap, calculate the mean between the last
+        reading before the gap and the first reading after gap.
+        Populate the rates of the dates in the gap with this mean.
+        """
         last_reading = df_resampled.iloc[sequence[0]-1]["edac_last"]
         next_reading = df_resampled.iloc[sequence[-1]+1]["edac_first"]
 
         mean = (next_reading-last_reading)/len(sequence)
 
         df_resampled.loc[sequence, 'daily_rate'] = mean
-
         # First date after a NaN sequence gets a daily rate
         # by subtracting the last reading and the first reading
         # for the day
