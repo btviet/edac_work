@@ -1,7 +1,7 @@
 import time
 
 import pandas as pd
-from parameters import PROCESSED_DATA_DIR, RATE_SAVGOL
+from parameters import POLYORDER_SAVGOL, PROCESSED_DATA_DIR, RATE_SAVGOL
 from processing_edac import read_resampled_df
 from scipy.signal import savgol_filter
 
@@ -9,12 +9,13 @@ from scipy.signal import savgol_filter
 def savitzky_fit_gcr():
     """
     Apply Savitzky-Golay filter
-    to the EDAC count rates
+    to the EDAC count rates.
+    Returns a Pandas DataFrame
+    with the Savitzky-Golay fit
     """
     rate_df = read_resampled_df()
-    savgolwindow = RATE_SAVGOL
-    polyorder = 2
-    y_filtered = savgol_filter(rate_df['daily_rate'], savgolwindow, polyorder)
+    y_filtered = savgol_filter(rate_df['daily_rate'],
+                               RATE_SAVGOL, POLYORDER_SAVGOL)
     rate_df['fit'] = y_filtered
     return rate_df
 
@@ -26,11 +27,12 @@ def create_detrended_rates():
     from the EDAC count rate
     """
     start_time = time.time()
-    print("Starting the de-trending process")
+    print("--------- Starting the de-trending process ---------")
     gcr_component = savitzky_fit_gcr()
     first_gcr = gcr_component['date'].iloc[0]
     last_gcr = gcr_component['date'].iloc[-1]
     rate_df = read_resampled_df()
+
     first_rate = rate_df['date'].iloc[0]
     last_rate = rate_df['date'].iloc[-1]
     if first_gcr >= first_rate:
@@ -53,7 +55,8 @@ def create_detrended_rates():
     # Detrending by subtraction
     detrended_df['detrended_rate'] = \
         detrended_df['daily_rate']-detrended_df['gcr_component']
-
+    mean_count_rate = detrended_df['detrended_rate'].mean()
+    print(f'Mean detrended count rate: {mean_count_rate}')
     filename = 'detrended_edac.txt'
     detrended_df.to_csv(PROCESSED_DATA_DIR / filename, sep='\t', index=False)
     print(f"File {PROCESSED_DATA_DIR}/{filename} created")
@@ -62,6 +65,16 @@ def create_detrended_rates():
 
 
 def read_detrended_rates():
+    """
+    Returns a Pandas DataFrame with the detrended count rates
+    Columns:
+        date: Date at noon
+        edac_first: First EDAC reading for each date
+        edac_last: Last EDAC reading for each date
+        daily_rate: The EDAC count rate
+        gcr_component: The Savitzky-Golay fit of daily_rate
+        detrended_rate: dailyrate subtracted the gcr_component
+    """
     df = pd.read_csv(PROCESSED_DATA_DIR / 'detrended_edac.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
     return df
@@ -73,7 +86,7 @@ def create_standardized_rates():
     of the detrended EDAC count rates
     """
     start_time = time.time()
-    print("Starting the standardization process")
+    print("----------- Starting the standardization process ---------")
     detrended_df = read_detrended_rates()
     detrended_mean = detrended_df['detrended_rate'].mean()
     detrended_std = detrended_df['detrended_rate'].std()
@@ -96,3 +109,13 @@ def read_standardized_rates():
 def standardize():
     create_detrended_rates()
     create_standardized_rates()
+
+
+def detrend():
+    create_detrended_rates()
+
+
+if __name__ == "__main__":
+    df = read_detrended_rates()
+    df.sort_values(by='detrended_rate', inplace=True)
+    print(df.iloc[-25:])
