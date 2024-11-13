@@ -5,7 +5,7 @@ from validate_cme_events import (
     generate_next_7_days,
     read_cme_events,
 )
-from validate_sep_events import generate_next_3_days, read_sep_events
+from validate_sep_events import generate_next_3_days, read_sep_database_events
 
 
 def read_spikes():
@@ -32,7 +32,7 @@ def read_fd_sweet_dates_old():
 def detect_real_sep_onsets():
     sweet_df = read_sep_sweet_dates_old()
     sweet_df['date'] = sweet_df['date'].dt.date
-    sep_df = read_sep_events()
+    sep_df = read_sep_database_events()
     sep_dict = dict.fromkeys(sep_df['onset_time'], [])
     for event_date in sep_dict.keys():
         sep_dict[event_date] = generate_next_3_days(event_date)

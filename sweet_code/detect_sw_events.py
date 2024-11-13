@@ -2,7 +2,12 @@ import os
 
 import pandas as pd
 from detrend_edac import read_detrended_rates
-from parameters import FD_NUMBER_DAYS, SWEET_EVENTS_DIR, UPPER_THRESHOLD
+from parameters import (
+    FD_NUMBER_DAYS,
+    LOWER_THRESHOLD,
+    SWEET_EVENTS_DIR,
+    UPPER_THRESHOLD,
+)
 from processing_edac import read_resampled_df
 
 sep_dates_filename = 'sweet_sep_dates.txt'
@@ -51,6 +56,7 @@ def find_sweet_sep():
     event_df.loc[0, 'duration'] = 1
     event_df.rename(columns={'mean_value': 'mean_rate',
                              'max_value': 'max_rate'}, inplace=True)
+    print(f'Number of SWEET SEP events is {len(event_df)}')
     event_df.to_csv(SWEET_EVENTS_DIR / sep_events_filename,
                     sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}\\{sep_events_filename} created")
@@ -81,7 +87,7 @@ def find_sweet_sep_by_consecutive_days():
     df = df[df['detrended_rate']]
     df["duration"] = df.groupby('group')['detrended_rate'].transform('size')
 
-    df = df[df["duration"] >= 3]
+    df = df[df["duration"] >= 4]
     print(f'The number of extra SEP days: {len(df)}')
     df.to_csv(SWEET_EVENTS_DIR / extra_sep_days_filename,
               sep='\t', index=False)  # Save to file
@@ -141,6 +147,7 @@ def find_sweet_forbush_decreases():
     print(f"File {SWEET_EVENTS_DIR}\\ {zerodays_filename} created")
     # Keep only the first dates in each Forbush decrease
     df_grouped = df.groupby('group').first().reset_index()
+    print(f'Number of Forbush decreases detected by SWEET: {len(df_grouped)}')
     df_grouped[["date", "duration"]].to_csv(
         SWEET_EVENTS_DIR / forbush_decrease_events_filename,
         sep='\t', index=False)  # Save to file
@@ -254,7 +261,7 @@ def create_sw_event_list():
     forbush_decreases = read_sweet_forbush_decreases()
     event_df = pd.concat([sep_events, forbush_decreases], ignore_index=True)
     event_df = event_df.sort_values(by="date")
-
+    print(f'Total number of SWEET events: {len(event_df)}')
     event_df.to_csv(SWEET_EVENTS_DIR / sweet_events_filename,
                     sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/{sweet_events_filename} created")
@@ -295,6 +302,17 @@ def read_sweet_event_dates():
     return df
 
 
+def find_sweet_forbush_rolling_rate():
+    df = read_detrended_rates()
+    troughs = df[(df['detrended_rate'] < LOWER_THRESHOLD)]
+    troughs = troughs.sort_values(by='date')
+    print("The number of days below the threshold of ",
+          LOWER_THRESHOLD, " is: ", len(troughs))
+    troughs.to_csv(SWEET_EVENTS_DIR / zerodays_filename,
+                   sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}\\ {zerodays_filename} created")
+
+
 def detect_sweet_events():
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
@@ -302,6 +320,11 @@ def detect_sweet_events():
     find_sweet_forbush_decreases()
     create_stormy_days_list()
     create_sw_event_list()
+
+
+def detect_sweet_events_rolling_rate():
+    find_sweet_forbush_rolling_rate()
+    find_sweet_sep()
 
 
 if __name__ == "__main__":
@@ -319,4 +342,7 @@ if __name__ == "__main__":
     # read_sweet_event_dates()
     # find_sweet_forbush_decreases()
     # create_stormy_days_list()
-    read_sweet_event_dates()
+    # read_sweet_event_dates()
+    # find_sweet_sep_by_consecutive_days()
+    detect_sweet_events()
+    # detect_sweet_events_rolling_rate()

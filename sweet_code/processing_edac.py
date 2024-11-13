@@ -157,6 +157,51 @@ def create_resampled_edac():
           f'{time.time() - start_time:.2f}', "seconds")
 
 
+def calculate_rolling_window_rate(days_window):
+
+    start_time = time.time()
+    print("--------- Calculating the daily rates ---------")
+    # Fetch resampled EDAC data
+    # read output from create_resampled_corrected_edac()
+    df_resampled = read_resampled_df()
+    df_resampled = df_resampled[["date", "edac_last"]]
+    df_resampled.rename(columns={"edac_last": "edac"}, inplace=True)
+    # The starting date in the data
+    startdate = df_resampled['date'][df_resampled.index[days_window//2]].date()
+    # The last date and time in the dataset
+    lastdate = df_resampled['date'][df_resampled.index[-days_window//2]].date()
+    print("The starting date is ", startdate, "\nThe last date is ", lastdate)
+    df_resampled['startwindow_edac'] = \
+        df_resampled['edac'].shift(days_window//2)
+    df_resampled['startwindow_date'] = \
+        df_resampled['date'].shift(days_window//2)
+    df_resampled['endwindow_date'] = \
+        df_resampled['date'].shift(-(days_window//2))
+    df_resampled['endwindow_edac'] = \
+        df_resampled['edac'].shift(-(days_window//2))
+
+    df_resampled['edac_diff'] = df_resampled['endwindow_edac'] - \
+        df_resampled['startwindow_edac']
+    df_resampled['daily_rate'] = df_resampled['edac_diff'] / days_window
+    # Remove all columns except for the date and the daily rate
+    new_df = df_resampled[['date', 'edac', 'daily_rate']]
+    # Remove rows without a daily rate
+    new_df = new_df[new_df['daily_rate'].notna()]
+
+    filename = str(days_window) + '_daily_rate.txt'
+    new_df.to_csv(PROCESSED_DATA_DIR / filename, sep='\t', index=False)
+    print("File  ", str(days_window) + "_daily_rate.txt created")
+    print('Time taken to create rate_df ',
+          f'{time.time() - start_time:.2f}', "seconds")
+
+
+def read_rolling_rates(days_window):
+    file_name = str(days_window) + "_daily_rate.txt"
+    df = pd.read_csv(PROCESSED_DATA_DIR / file_name,
+                     skiprows=0, sep="\t", parse_dates=['date'])
+    return df
+
+
 def process_raw_edac():
     if not os.path.exists(PROCESSED_DATA_DIR):
         os.makedirs(PROCESSED_DATA_DIR)
@@ -166,4 +211,7 @@ def process_raw_edac():
 
 if __name__ == "__main__":
     # create_zero_set_correct()
-    create_resampled_edac()
+    # create_resampled_edac()
+    # calculate_rolling_window_rate()
+    df = read_resampled_df()
+    print(df['daily_rate'].value_counts())
