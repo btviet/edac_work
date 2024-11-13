@@ -7,7 +7,6 @@ def read_sep_database_events() -> pd.DataFrame:
     Reads the SEP table which
     has been converted to a .csv file
     from the database
-
     Parameters
     ----------
     file_path: Path

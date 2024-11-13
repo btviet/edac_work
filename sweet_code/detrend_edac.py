@@ -1,23 +1,28 @@
 import time
 
 import pandas as pd
-from parameters import POLYORDER_SAVGOL, PROCESSED_DATA_DIR, RATE_SAVGOL
-from processing_edac import read_resampled_df
+from parameters import (
+    DETREND_METHOD,
+    POLYORDER_SAVGOL,
+    PROCESSED_DATA_DIR,
+    RATE_SAVGOL,
+)
+from processing_edac import read_resampled_df, read_rolling_rates
 from scipy.signal import savgol_filter
 
 
-def savitzky_fit_gcr():
+def savitzky_fit_gcr(rate_df):
     """
     Apply Savitzky-Golay filter
     to the EDAC count rates.
     Returns a Pandas DataFrame
     with the Savitzky-Golay fit
     """
-    rate_df = read_resampled_df()
-    y_filtered = savgol_filter(rate_df['daily_rate'],
+    df = rate_df.copy()
+    y_filtered = savgol_filter(df['daily_rate'],
                                RATE_SAVGOL, POLYORDER_SAVGOL)
-    rate_df['fit'] = y_filtered
-    return rate_df
+    df['fit'] = y_filtered
+    return df
 
 
 def create_detrended_rates():
@@ -28,11 +33,22 @@ def create_detrended_rates():
     """
     start_time = time.time()
     print("--------- Starting the de-trending process ---------")
-    gcr_component = savitzky_fit_gcr()
+    if DETREND_METHOD == 'division':
+        smoothing_df = read_rolling_rates(11)
+        gcr_component = savitzky_fit_gcr(smoothing_df)
+        rate_df = read_rolling_rates(5)
+        # rate_df = read_resampled_df()
+        # gcr_component = savitzky_fit_gcr(rate_df)
+
+    else:
+        # rate_df = read_rolling_rates(5)
+        # smoothing_df = read_rolling_rates(11)
+        # gcr_component = savitzky_fit_gcr(smoothing_df)
+        rate_df = read_resampled_df()
+        gcr_component = savitzky_fit_gcr(rate_df)
+
     first_gcr = gcr_component['date'].iloc[0]
     last_gcr = gcr_component['date'].iloc[-1]
-    rate_df = read_resampled_df()
-
     first_rate = rate_df['date'].iloc[0]
     last_rate = rate_df['date'].iloc[-1]
     if first_gcr >= first_rate:
@@ -50,14 +66,30 @@ def create_detrended_rates():
     gcr_component.reset_index(drop=True, inplace=True)
 
     detrended_df = rate_df.copy()
-
     detrended_df['gcr_component'] = gcr_component['fit']
-    # Detrending by subtraction
-    detrended_df['detrended_rate'] = \
-        detrended_df['daily_rate']-detrended_df['gcr_component']
+
+    print(gcr_component['fit'].isna().sum())
+    print(len(gcr_component))
+    print(detrended_df['gcr_component'].isna().sum())
+    # GCR COMPONENT IS LONGER THAN RATE_DF
+
+    gcr_component['date'] = gcr_component['date'].dt.date
+    # gcr_dates = gcr_component['date'].to_list()
+    detrended_df['date'] = detrended_df['date'].dt.date
+    # detrended_dates = detrended_df['date'].to_list()
+    # c = (set(gcr_dates) - set(detrended_dates))
+
+    if DETREND_METHOD == 'division':
+        detrended_df['detrended_rate'] = \
+            detrended_df['daily_rate']/detrended_df['gcr_component'] - 1
+
+    else:  # Detrend by subtraction
+        detrended_df['detrended_rate'] = \
+            detrended_df['daily_rate']-detrended_df['gcr_component']
     mean_count_rate = detrended_df['detrended_rate'].mean()
     print(f'Mean detrended count rate: {mean_count_rate}')
     filename = 'detrended_edac.txt'
+    print("detrended_df: ", detrended_df)
     detrended_df.to_csv(PROCESSED_DATA_DIR / filename, sep='\t', index=False)
     print(f"File {PROCESSED_DATA_DIR}/{filename} created")
     print('Time taken: ',
@@ -116,6 +148,4 @@ def detrend():
 
 
 if __name__ == "__main__":
-    df = read_detrended_rates()
-    df.sort_values(by='detrended_rate', inplace=True)
-    print(df.iloc[-25:])
+    create_detrended_rates()
