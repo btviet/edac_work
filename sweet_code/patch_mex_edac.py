@@ -7,14 +7,21 @@ from parameters import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
 
 def patch_update_13_11_2024():
-    original_df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac.txt",
+    original_df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac_specialization_project.txt",
                         skiprows=0, sep="\t", parse_dates=['datetime'])
     new_df = read_update_13_11_2024()
-    print(new_df)
-    #new_df = new_df[["datetime", "NDMW0D0G"]]
-    #new_df.dropna(subset=['NDMW0D0G'], inplace=True)
-    #new_df.to_csv(RAW_DATA_DIR / "tesdt.csv ", sep='\t', index=False)
-    #print(new_df["NDMW0D0G"])
+    new_df = new_df[["datetime", "NDMW0D0G"]]
+    new_df.columns = ["datetime", "edac"]
+    new_df.replace({'edac': ' '}, np.nan, inplace=True)
+    new_df = new_df.dropna(subset=['edac'])
+    new_df = new_df.reset_index()
+    new_df = new_df.drop(columns=['index'])
+
+    new_df['edac'] = new_df['edac'].astype(int)
+    df = pd.concat([original_df, new_df], axis=0, ignore_index=True)
+    df.to_csv(PROCESSED_DATA_DIR / "patched_mex_edac.txt", sep='\t', index=False)
+    print(f"File {PROCESSED_DATA_DIR}/ patched_mex_edac.txt created")
+
 
 def read_update_13_11_2024():
     header_df = ["datetime",
@@ -99,7 +106,7 @@ def plot_update_13_11_2024_individual():
 
 def zeroset_correct_edacs_13_11_2024():
     """
-    Create the zero-set corrected dataframe of the raw EDAC counter
+    Create the zero-set corrected dataframe of the raw EDAC counters
     """
 
     print("--------- Starting the zeroset correction ---------")
