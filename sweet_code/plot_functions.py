@@ -61,9 +61,10 @@ def plot_raw_edac_scatter():
     For small time intervals
     """
     df = read_rawedac()
-    start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
-    end_date = datetime.strptime("2004-01-05", "%Y-%m-%d")
-    df = df[(df["datetime"] >= start_date) & (df["datetime"] >= end_date)]
+    start_date = datetime.strptime("2024-05-17", "%Y-%m-%d")
+    end_date = datetime.strptime("2024-05-30", "%Y-%m-%d")
+    df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
+    print("df: ", df)
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.scatter(df["datetime"], df["edac"],
                 label='Raw MEX EDAC',
@@ -71,7 +72,26 @@ def plot_raw_edac_scatter():
                 linewidth=2)
     ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
     ax1.set_ylabel("MEX EDAC count [#]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.tick_params(axis="x", rotation=10)
+    major_ticks = pd.date_range(start=start_date, end=end_date, freq='2D')
+    ax1.set_xticks(major_ticks)
 
+    # Set minor ticks every 1 day
+    minor_ticks = pd.date_range(start=start_date, end=end_date, freq='D')
+    ax1.set_xticks(minor_ticks, minor=True)
+    """
+    major_ticks_locations = [
+        pd.to_datetime('2024-05-17 12:00:00')
+        + pd.Timedelta(days=2 * i)
+        for i in range(-1, 7)]
+    ax1.set_xticks(major_ticks_locations)
+    
+    minor_ticks_locations = [
+        pd.to_datetime('2024-05-17 12:00:00') + pd.Timedelta(hours=i)
+        for i in range(0, 48 * 2)  # 48 hours * 2 (to cover minor ticks for 2 days)
+    ]
+    """
+    # ax1.set_xticks(minor_ticks_locations, minor=True)
     # major_x_locator = YearLocator(4)
     # ax1.xaxis.set_major_locator(major_x_locator)
     # ax1.minorticks_on()
@@ -381,6 +401,50 @@ def plot_gcr_fit_ssn():
     plt.show()
 
 
+def plot_variable_noise_threshold():
+    df = read_detrended_rates()
+
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax1.plot(df["date"], df["detrended_rate"],
+             label='Detrended count rate',
+             color=DETRENDED_EDAC_COLOR,  # BRAT_GREEN,
+             linewidth=2)
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Detrended count rate [#/day]",
+                   fontsize=FONTSIZE_AXES_LABELS)
+    ax1.plot(
+        df["date"],
+        df["gcr_component"]+1,
+        label="Savitzky-Golay fit",
+        color=RATE_FIT_COLOR 
+    )
+    # ax1.axhline(UPPER_THRESHOLD, color='black',
+    #            linewidth=2,
+    #            linestyle='dashed',
+    #            label=f'Threshold of {UPPER_THRESHOLD}')
+
+    major_x_locator = YearLocator(4)
+    ax1.xaxis.set_major_locator(major_x_locator)
+    ax1.minorticks_on()
+    minor_x_locator = YearLocator(1)
+    ax1.xaxis.set_minor_locator(minor_x_locator)
+
+    major_y_locator = MultipleLocator(2)
+    ax1.yaxis.set_major_locator(major_y_locator)
+    minor_y_locator = MultipleLocator(1)
+    ax1.yaxis.set_minor_locator(minor_y_locator)
+
+    ax1.tick_params(which='minor', length=6)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.legend(fontsize=FONTSIZE_LEGENDS)
+    ax1.grid()
+    # fig.suptitle("brat")
+    fig.suptitle("MEX EDAC detrended count rate",
+                 fontsize=FONTSIZE_TITLE)
+    plt.tight_layout(pad=1.0)
+    plt.show()   
+
+
 def process_sidc_ssn():
     """
     Processes the SSN data from SIDC
@@ -597,11 +661,11 @@ def show_timerange(startdate, enddate):
     ax1.yaxis.set_major_locator(MultipleLocator(8))
     ax1.yaxis.set_minor_locator(MultipleLocator(4))
 
-    ax2.yaxis.set_major_locator(MultipleLocator(2))
-    ax2.yaxis.set_minor_locator(MultipleLocator(1))
+    ax2.yaxis.set_major_locator(MultipleLocator(4))
+    ax2.yaxis.set_minor_locator(MultipleLocator(2))
 
-    ax3.yaxis.set_major_locator(MultipleLocator(2))
-    ax3.yaxis.set_minor_locator(MultipleLocator(1))
+    ax3.yaxis.set_major_locator(MultipleLocator(4))
+    ax3.yaxis.set_minor_locator(MultipleLocator(2))
 
     """
     # ax1.axvline(x=datetime.strptime("2013-12-23", "%Y-%m-%d"),
@@ -609,16 +673,21 @@ def show_timerange(startdate, enddate):
                 color='black',
                 label='Start of Forbush Decrease')
     """
-    ax2.set_ylim([-1, 6])
-    ax3.set_ylim([-2, 6])
+    #ax2.set_ylim([-1, 6])
+    #ax3.set_ylim([-2, 6])
     ax3.set_xlim(startdate, enddate)
     ax2.set_xlim(startdate, enddate)
     ax1.set_xlim(startdate, enddate)
+    major_ticks = pd.date_range(start=startdate, end=enddate, freq='7D')
+    ax1.set_xticks(major_ticks)
+
+    """
     major_ticks_locations = [
-        pd.to_datetime('2021-07-17 12:00:00')
+        pd.to_datetime('2024-05-20 12:00:00')
         + pd.Timedelta(days=7 * i)
         for i in range(-2, 3)]
     ax1.set_xticks(major_ticks_locations)
+    """
     ax1.xaxis.set_minor_locator(mdates.DayLocator())
     ax1.grid()
     ax2.grid()
@@ -628,7 +697,7 @@ def show_timerange(startdate, enddate):
     ax3.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
     # ax3.legend(fontsize=FONTSIZE_LEGENDS,
     # loc='upper right', bbox_to_anchor=(0.9, 1))
-    fig.suptitle("A SWEET Forbush Decrease in December 2013",
+    fig.suptitle("May 2024 SEP event",
                  fontsize=16)
     # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
     fig.subplots_adjust(top=0.94)
@@ -1914,10 +1983,11 @@ if __name__ == "__main__":
     # plot_rates_all()
     # plot_histogram_rates()
     # plot_raw_and_zerosetcorrected()
-    currentdate = datetime.strptime("2021-10-28", "%Y-%m-%d")
+    currentdate = datetime.strptime("2024-05-20", "%Y-%m-%d")
     startdate = currentdate - pd.Timedelta(days=21)
     enddate = currentdate + pd.Timedelta(days=21)
-    # show_timerange(startdate, enddate)
+    # plot_raw_edac_scatter()
+    show_timerange(startdate, enddate)
     # show_timerange_counter_countrate(startdate, enddate)
     # plot_raw_and_zerosetcorrected()
     # plot_histogram_rates()
@@ -1933,5 +2003,5 @@ if __name__ == "__main__":
     # plot_gcr_fit_ssn()
     # plot_solar_cycle()
     # plot_detrended_rates()
-    plot_count_rate_with_fit()
+    #plot_variable_noise_threshold()
     # plot_sweet_events_binned()
