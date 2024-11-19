@@ -69,6 +69,45 @@ def find_sweet_sep():
     # print(f"File {SWEET_EVENTS_DIR}/{filename} created")
 
 
+def test_sweet_sep_variable_threshold():
+    print("----- Finding SEP events in the EDAC data --------")
+    print("----- testing")
+    df = read_detrended_rates()
+    
+    spike_df = df.copy()
+    spike_df["threshold"] = df["gcr_component"]+1
+    print(spike_df["threshold"].min(), spike_df["threshold"].max())
+    peaks = spike_df[(spike_df['detrended_rate'] > spike_df["threshold"])].copy()
+    peaks = peaks.sort_values(by='date')
+
+    print("The number of days above the threshold of ",
+          UPPER_THRESHOLD, " is: ", len(peaks))
+    peaks.to_csv(SWEET_EVENTS_DIR / sep_dates_filename,
+                 sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}\\{sep_dates_filename} created")
+    # Group the SEP dates into SEP events
+    # And find the duration of each SEP event
+    # Duration = number of consecutive days above UPPER_THRESHOLD
+    peaks['diff'] = peaks['date'].diff().dt.days
+    # Identify the sequences where the difference is 1 day or less
+    peaks['group'] = (peaks['diff'] != 1).cumsum()
+
+    event_df = peaks.groupby('group').agg(
+        start_date=('date', 'first'),
+        duration=('diff', lambda x: x.notna().sum()),
+        mean_value=('detrended_rate', 'mean'),
+        max_value=('detrended_rate', 'max')
+
+    ).reset_index(drop=True)
+    event_df.loc[0, 'duration'] = 1
+    event_df.rename(columns={'mean_value': 'mean_rate',
+                             'max_value': 'max_rate'}, inplace=True)
+    print(f'Number of SWEET SEP events is {len(event_df)}')
+    event_df.to_csv(SWEET_EVENTS_DIR / sep_events_filename,
+                    sep='\t', index=False)  # Save to file
+    print(f"File {SWEET_EVENTS_DIR}\\{sep_events_filename} created")
+
+
 def find_sweet_sep_by_consecutive_days():
     """
     Find SEP events by finding the dates where
@@ -328,6 +367,11 @@ def detect_sweet_events_rolling_rate():
 
 
 if __name__ == "__main__":
+    if not os.path.exists(SWEET_EVENTS_DIR):
+        os.makedirs(SWEET_EVENTS_DIR)
+    #find_sweet_sep()
+    test_sweet_sep_variable_threshold()
+    create_sw_event_list()
     # find_sweet_sep_by_consecutive_days()
     # find_sweet_sep()
     # read_second_method_sweet_sep()
@@ -344,5 +388,5 @@ if __name__ == "__main__":
     # create_stormy_days_list()
     # read_sweet_event_dates()
     # find_sweet_sep_by_consecutive_days()
-    detect_sweet_events()
+    # detect_sweet_events()
     # detect_sweet_events_rolling_rate()
