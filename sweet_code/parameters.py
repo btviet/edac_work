@@ -5,7 +5,7 @@ from file_paths import get_data_dir
 
 load_dotenv()
 
-UPPER_THRESHOLD: Final = 3.2
+UPPER_THRESHOLD: Final = 2.5
 LOWER_THRESHOLD: Final = 0
 FD_NUMBER_DAYS: Final = 3
 SUNSPOTS_SAVGOL = 601
@@ -23,6 +23,7 @@ DATABASE_DIR = LOCAL_DIR / "database/"
 FORBUSH_VALIDATION_DIR = LOCAL_DIR / "forbush_validation/"
 SWEET_VALIDATION_DIR = LOCAL_DIR / "sweet_validation"
 TOOLS_OUTPUT_DIR = LOCAL_DIR / "tools_output/"
+MAVEN_SEP_DIR = LOCAL_DIR / "maven_sep_data/"
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
 RAW_EDAC_COLOR = "#0077BB"
 ZEROSET_COLOR = "#E55F3F"
