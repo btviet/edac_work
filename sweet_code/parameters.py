@@ -5,7 +5,7 @@ from file_paths import get_data_dir
 
 load_dotenv()
 
-UPPER_THRESHOLD: Final = 2.5
+UPPER_THRESHOLD: Final = 3.2
 LOWER_THRESHOLD: Final = 0
 FD_NUMBER_DAYS: Final = 3
 SUNSPOTS_SAVGOL = 601
@@ -39,4 +39,4 @@ FONTSIZE_AXES_LABELS = 16
 FONTSIZE_TITLE = 20
 FONTSIZE_AXES_TICKS = 14
 FONTSIZE_LEGENDS = 12
-DETREND_METHOD = 'subtraction'
+DETREND_METHOD = 'division'
