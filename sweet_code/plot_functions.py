@@ -54,6 +54,7 @@ from scipy.signal import savgol_filter
 from validate_cme_events import read_cme_validation_results
 from validate_forbush_decreases import read_msl_rad_fd_validation_result
 from validate_sep_events import read_sep_validation_results
+from read_mex_aspera_data import read_mex_ima_bg_counts
 
 
 def plot_raw_edac_scatter(start_date, end_date):
@@ -1963,6 +1964,7 @@ def show_timerange_counter_countrate(startdate, enddate):
     # One week away, up to five weeks
     ax1.set_xticks(major_ticks_locations)
     ax1.xaxis.set_minor_locator(mdates.DayLocator())
+    
     ax1.grid()
     ax2.grid()
 
@@ -2021,10 +2023,10 @@ def plot_zero_set_and_detrended():
     ax2.yaxis.set_label_position("right")
 
     # minor_y_locator = MultipleLocator(1)
-    #ax1.yaxis.set_major_locator(MultipleLocator(5))
-    #ax1.yaxis.set_minor_locator(MultipleLocator(1))
-    #ax2.yaxis.set_major_locator(MultipleLocator(5))
-    #ax2.yaxis.set_minor_locator(MultipleLocator(1))
+    # ax1.yaxis.set_major_locator(MultipleLocator(5))
+    # ax1.yaxis.set_minor_locator(MultipleLocator(1))
+    # ax2.yaxis.set_major_locator(MultipleLocator(5))
+    # ax2.yaxis.set_minor_locator(MultipleLocator(1))
     ax1.grid()
     ax2.grid()
 
@@ -2034,6 +2036,81 @@ def plot_zero_set_and_detrended():
     plt.subplots_adjust(hspace=0.1)
     fig.suptitle("MEX EDAC data mellom januar 2004 og juli 2024",
                  fontsize=FONTSIZE_TITLE, y=0.94)
+    plt.show()
+
+
+def plot_mex_ima_bg_counts_time_interval(start_date, end_date):
+    df = read_mex_ima_bg_counts()
+    df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
+    fig, ax = plt.subplots()
+    ax.scatter(df['datetime'], df['bg_counts'], s=0.5,
+               label="Background counts")
+    # ax.scatter(df['datetime'], df['total_counts'], s=0.5,
+    #           label="Total counts")
+
+    ax.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    weeks_in_interval = (end_date-start_date).days//7
+    print(weeks_in_interval)
+    major_ticks_locations = [
+        start_date
+        + pd.Timedelta(days=7 * i)
+        for i in range(weeks_in_interval+1)
+    ]
+    # One week away, up to five weeks
+    ax.set_xticks(major_ticks_locations)
+    ax.xaxis.set_minor_locator(mdates.DayLocator())
+    ax.tick_params(axis="x", rotation=0)
+    ax.set_yscale('log')
+    ax.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax.set_ylabel("Logarithm of counts",  fontsize=FONTSIZE_AXES_LABELS)
+    ax.legend()
+    ax.set_title("MEX/ASPERA-3 IMA counts for September 2017", fontsize=FONTSIZE_TITLE,
+                 pad=2)
+    ax.grid()
+    plt.show()
+
+def plot_ima_counts_and_sweet(start_date, end_date):
+    df_ima = read_mex_ima_bg_counts()
+    df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
+    df_sweet = read_detrended_rates()
+    df_sweet = df_sweet[(df_sweet["date"] > start_date) & (df_sweet["date"] < end_date)]
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True,
+                                   figsize=(8, 5))
+    ax1.plot(df_sweet["date"], df_sweet["detrended_rate"],
+             marker='o')
+    ax2.plot(df_ima["datetime"], df_ima["bg_counts"])
+    ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Detrended EDAC count rate", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("IMA background counts", fontsize=FONTSIZE_AXES_LABELS)
+    # ax3.set_ylabel('EDAC standardized count rate', fontsize=12)
+
+
+    ax1.yaxis.set_major_locator(MultipleLocator(4))
+    ax1.yaxis.set_minor_locator(MultipleLocator(1))
+    max_y = df_sweet["detrended_rate"].max()
+    ax1.set_ylim([-1, max_y+4])
+
+    weeks_in_interval = (end_date-start_date).days//7
+    major_ticks_locations = [
+        start_date
+        + pd.Timedelta(days=7 * i)
+        for i in range(weeks_in_interval+1)
+    ]
+    ax2.set_xticks(major_ticks_locations)
+    ax2.xaxis.set_minor_locator(mdates.DayLocator())
+
+    ax2.set_yscale('log')
+    ax2.tick_params(axis="x", rotation=0)
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position("right")
+    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.grid()
+    ax2.grid()
     plt.show()
 
 
@@ -2048,18 +2125,18 @@ if __name__ == "__main__":
     # plot_histogram_rates()
     # plot_raw_and_zerosetcorrected()
     # plot_zero_set_correction()
-    currentdate = datetime.strptime("2017-09-11", "%Y-%m-%d")
-    startdate = currentdate - pd.Timedelta(days=21)
-    enddate = currentdate + pd.Timedelta(days=21)
+    # currentdate = datetime.strptime("2017-09-11", "%Y-%m-%d")
+    # startdate = currentdate - pd.Timedelta(days=21)
+    # enddate = currentdate + pd.Timedelta(days=21)
     #plot_detrended_rates()
     # plot_zero_set_and_detrended()
-    show_timerange_counter_countrate(startdate, enddate)
+    # show_timerange_counter_countrate(startdate, enddate)
     # plot_raw_edac_scatter()
     # start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
     # end_date = datetime.strptime("2024-01-21", "%Y-%m-%d")
     #show_timerange(startdate, enddate)
-    startdate = currentdate - pd.Timedelta(days=7)
-    enddate = currentdate + pd.Timedelta(days=7)
+    #startdate = currentdate - pd.Timedelta(days=7)
+    #enddate = currentdate + pd.Timedelta(days=7)
     # plot_raw_edac_scatter(startdate, enddate)
 
     # df = read_detrended_rates()
@@ -2083,3 +2160,7 @@ if __name__ == "__main__":
     # plot_detrended_rates()
     # plot_variable_noise_threshold()
     # plot_sweet_events_binned()
+    start_date =datetime.strptime("2006-05-01", "%Y-%m-%d")
+    end_date = datetime.strptime("2006-05-30", "%Y-%m-%d")
+    plot_ima_counts_and_sweet(start_date, end_date)
+    # plot_mex_ima_bg_counts_time_interval(start_date, end_date)
