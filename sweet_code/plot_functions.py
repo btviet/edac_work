@@ -56,13 +56,11 @@ from validate_forbush_decreases import read_msl_rad_fd_validation_result
 from validate_sep_events import read_sep_validation_results
 
 
-def plot_raw_edac_scatter():
+def plot_raw_edac_scatter(start_date, end_date):
     """
     For small time intervals
     """
     df = read_rawedac()
-    start_date = datetime.strptime("2024-05-17", "%Y-%m-%d")
-    end_date = datetime.strptime("2024-05-30", "%Y-%m-%d")
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
     print("df: ", df)
     fig, ax1 = plt.subplots(figsize=(10, 7))
@@ -658,14 +656,14 @@ def show_timerange(startdate, enddate):
     ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
     ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
 
-    ax1.yaxis.set_major_locator(MultipleLocator(8))
-    ax1.yaxis.set_minor_locator(MultipleLocator(4))
+    ax1.yaxis.set_major_locator(MultipleLocator(20))
+    ax1.yaxis.set_minor_locator(MultipleLocator(5))
 
-    ax2.yaxis.set_major_locator(MultipleLocator(4))
-    ax2.yaxis.set_minor_locator(MultipleLocator(2))
+    ax2.yaxis.set_major_locator(MultipleLocator(2))
+    ax2.yaxis.set_minor_locator(MultipleLocator(1))
 
-    ax3.yaxis.set_major_locator(MultipleLocator(4))
-    ax3.yaxis.set_minor_locator(MultipleLocator(2))
+    ax3.yaxis.set_major_locator(MultipleLocator(2))
+    ax3.yaxis.set_minor_locator(MultipleLocator(1))
 
     """
     # ax1.axvline(x=datetime.strptime("2013-12-23", "%Y-%m-%d"),
@@ -697,7 +695,7 @@ def show_timerange(startdate, enddate):
     ax3.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
     # ax3.legend(fontsize=FONTSIZE_LEGENDS,
     # loc='upper right', bbox_to_anchor=(0.9, 1))
-    fig.suptitle("May 2024 SEP event",
+    fig.suptitle("",
                  fontsize=16)
     # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
     fig.subplots_adjust(top=0.94)
@@ -718,6 +716,7 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
         os.makedirs(file_path / folder_name)
     raw_edac = read_rawedac()
     df = read_detrended_rates()
+    df["threshold"] = df["gcr_component"]+1
     count = 0
     for date in date_list:
         print("Date: ", date, ". count: ", count)
@@ -752,6 +751,13 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
             marker="o",
             label="Detrended rate",
             color=DETRENDED_EDAC_COLOR
+        )
+        ax3.plot(
+            temp_2024["date"],
+            temp_2024["threshold"],
+            marker="o",
+            label="Variable threshold",
+            color='red'
         )
 
         ax3.axhline(UPPER_THRESHOLD, color=THRESHOLD_COLOR, label='Threshold',
@@ -1909,14 +1915,14 @@ def show_timerange_counter_countrate(startdate, enddate):
         os.makedirs(LOCAL_DIR / "events")
 
     fig, (ax1, ax2) = plt.subplots(2, sharex=True,
-                                   figsize=(10, 7.5))
+                                   figsize=(8, 5))
     # ax1.scatter(filtered_raw["datetime"], filtered_raw["edac"],
     #           label="MEX EDAC", s=3, color=RAW_EDAC_COLOR)
     ax1.scatter(df["date"], df["edac_first"],
-                label="MEX EDAC", color=RAW_EDAC_COLOR)
+                label="MEX EDAC", color="midnightblue")
 
     ax2.plot(df["date"], df["daily_rate"], marker="o",
-             label="EDAC count rate", color=RATE_EDAC_COLOR)
+             label="EDAC daglig rate", color="maroon")
     """
     ax3.plot(
         df["date"],
@@ -1926,9 +1932,9 @@ def show_timerange_counter_countrate(startdate, enddate):
         color=STANDARDIZED_EDAC_COLOR
     )
     """
-    ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
-    ax1.set_ylabel("EDAC count", fontsize=FONTSIZE_AXES_LABELS)
-    ax2.set_ylabel("EDAC count rate", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_xlabel("Dato", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("EDAC teller [#]", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("EDAC tellerrate [#/dag]", fontsize=FONTSIZE_AXES_LABELS)
     # ax3.set_ylabel('EDAC standardized count rate', fontsize=12)
     ax2.tick_params(axis="x", rotation=10)
     ax2.yaxis.tick_right()
@@ -1945,12 +1951,12 @@ def show_timerange_counter_countrate(startdate, enddate):
     # linestyle='dashed',
     # color='black')
     ax2.set_ylim([-1, 6])
-    ax2.set_ylim([-1, 7])
+    ax2.set_ylim([-1, 18])
     ax2.set_xlim(startdate, enddate)
     ax1.set_xlim(startdate, enddate)
 
     major_ticks_locations = [
-        pd.to_datetime('2021-10-28 00:00:00')
+        pd.to_datetime('2017-09-11 00:00:00')
         + pd.Timedelta(days=7 * i)
         for i in range(-3, 4)
     ]
@@ -1964,12 +1970,70 @@ def show_timerange_counter_countrate(startdate, enddate):
     ax2.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
     # ax3.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right',
     # bbox_to_anchor=(0.9, 1))
-    fig.suptitle("SEP event in October 2021", fontsize=16)
+    fig.suptitle("Romvær-hendelse i september 2017", fontsize=16)
     # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
     fig.subplots_adjust(top=0.94)
     plt.savefig(LOCAL_DIR / 'events' /
                 f'edac_{startdate_string}{enddate_string}.png',
                 dpi=300, transparent=False)
+    plt.show()
+
+
+def plot_zero_set_and_detrended():
+    detrended_df = read_detrended_rates()
+    zeroset_df = read_zero_set_correct()
+    # print(detrended_df.sort_values(by="detrended_rate"))
+    first_date = detrended_df['date'].iloc[0]
+    last_date = detrended_df['date'].iloc[-1]
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True, figsize=(10, 10))
+
+
+    ax2.plot(
+        detrended_df["date"],
+        detrended_df["detrended_rate"],
+        label="MEX EDAC daglig rate",
+        color="maroon"
+    )
+    ax1.plot(zeroset_df["datetime"], zeroset_df["edac"],
+             label='MEX EDAC data',
+             color="midnightblue",
+             linewidth=2)
+    
+
+
+    ax2.set_xlabel("Dato", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("EDAC teller-rate [#/dag]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("EDAC teller [#]",
+                   fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_xlim([first_date, last_date])
+    major_x_locator = YearLocator(4)
+    ax1.xaxis.set_major_locator(major_x_locator)
+    ax1.minorticks_on()
+    minor_x_locator = YearLocator(1)
+    ax1.xaxis.set_minor_locator(minor_x_locator)
+
+    ax1.tick_params(which='minor', length=6)
+    ax2.tick_params(which='minor', length=6)
+
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position("right")
+
+    # minor_y_locator = MultipleLocator(1)
+    #ax1.yaxis.set_major_locator(MultipleLocator(5))
+    #ax1.yaxis.set_minor_locator(MultipleLocator(1))
+    #ax2.yaxis.set_major_locator(MultipleLocator(5))
+    #ax2.yaxis.set_minor_locator(MultipleLocator(1))
+    ax1.grid()
+    ax2.grid()
+
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper left')
+    # ax3.legend(loc='upper left', bbox_to_anchor=(0.05, 1))
+    plt.subplots_adjust(hspace=0.1)
+    fig.suptitle("MEX EDAC data mellom januar 2004 og juli 2024",
+                 fontsize=FONTSIZE_TITLE, y=0.94)
     plt.show()
 
 
@@ -1983,11 +2047,24 @@ if __name__ == "__main__":
     # plot_rates_all()
     # plot_histogram_rates()
     # plot_raw_and_zerosetcorrected()
-    currentdate = datetime.strptime("2024-05-20", "%Y-%m-%d")
+    # plot_zero_set_correction()
+    currentdate = datetime.strptime("2017-09-11", "%Y-%m-%d")
     startdate = currentdate - pd.Timedelta(days=21)
     enddate = currentdate + pd.Timedelta(days=21)
+    #plot_detrended_rates()
+    # plot_zero_set_and_detrended()
+    show_timerange_counter_countrate(startdate, enddate)
     # plot_raw_edac_scatter()
-    show_timerange(startdate, enddate)
+    # start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
+    # end_date = datetime.strptime("2024-01-21", "%Y-%m-%d")
+    #show_timerange(startdate, enddate)
+    startdate = currentdate - pd.Timedelta(days=7)
+    enddate = currentdate + pd.Timedelta(days=7)
+    # plot_raw_edac_scatter(startdate, enddate)
+
+    # df = read_detrended_rates()
+    # df.sort_values(by="detrended_rate", inplace=True, ascending=False)
+    # print(df.iloc[20:30])
     # show_timerange_counter_countrate(startdate, enddate)
     # plot_raw_and_zerosetcorrected()
     # plot_histogram_rates()
@@ -1999,9 +2076,10 @@ if __name__ == "__main__":
     # plot_zero_set_correction()
     # create_msl_rad_dates_sep_plots()
     # create_msl_rad_fd_dates_sweet_found()
-    #plot_detrended_rates_with_solar_cycle()
+    # plot_detrended_rates_with_solar_cycle()
     # plot_gcr_fit_ssn()
+    # create_msl_rad_dates_sep_plots()
     # plot_solar_cycle()
     # plot_detrended_rates()
-    #plot_variable_noise_threshold()
+    # plot_variable_noise_threshold()
     # plot_sweet_events_binned()
