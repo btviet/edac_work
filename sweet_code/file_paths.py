@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv(dotenv_path='C:\\Users\\shayl\\OneDrive - NTNU\\edac_repo\\edac_work\\.env')
 
 def _fix_path(env_name: str) -> Path:
     _dir = os.getenv(env_name)
