@@ -24,6 +24,7 @@ FORBUSH_VALIDATION_DIR = LOCAL_DIR / "forbush_validation/"
 SWEET_VALIDATION_DIR = LOCAL_DIR / "sweet_validation"
 TOOLS_OUTPUT_DIR = LOCAL_DIR / "tools_output/"
 MAVEN_SEP_DIR = LOCAL_DIR / "maven_sep_data/"
+MEX_ASPERA_DIR = LOCAL_DIR / "mex_aspera_data/"
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
 RAW_EDAC_COLOR = "#0077BB"
 ZEROSET_COLOR = "#E55F3F"
