@@ -25,6 +25,7 @@ SWEET_VALIDATION_DIR = LOCAL_DIR / "sweet_validation"
 TOOLS_OUTPUT_DIR = LOCAL_DIR / "tools_output/"
 MAVEN_SEP_DIR = LOCAL_DIR / "maven_sep_data/"
 MEX_ASPERA_DIR = LOCAL_DIR / "mex_aspera_data/"
+
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
 RAW_EDAC_COLOR = "#0077BB"
 ZEROSET_COLOR = "#E55F3F"
@@ -38,7 +39,7 @@ SSN_SMOOTHED_COLOR = "#000000"
 BINNED_COLOR = "#999933"
 BRAT_GREEN = "#8ACE00"
 FONTSIZE_AXES_LABELS = 16
-FONTSIZE_TITLE = 20
+FONTSIZE_TITLE = 18
 FONTSIZE_AXES_TICKS = 14
 FONTSIZE_LEGENDS = 12
 DETREND_METHOD = 'division'
