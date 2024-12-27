@@ -72,10 +72,11 @@ def create_detrended_rates():
     # print(len(gcr_component))
     # print(detrended_df['gcr_component'].isna().sum())
 
+    # gcr_component['date'] = gcr_component['date'].dt.date
 
-    gcr_component['date'] = gcr_component['date'].dt.date
+    # detrended_df['date'] = detrended_df['date'].dt.date
+
     # gcr_dates = gcr_component['date'].to_list()
-    detrended_df['date'] = detrended_df['date'].dt.date
     # detrended_dates = detrended_df['date'].to_list()
     # c = (set(gcr_dates) - set(detrended_dates))
 
@@ -149,6 +150,6 @@ def detrend():
 
 if __name__ == "__main__":
 
-    # create_detrended_rates()
-    df = read_detrended_rates()
-    print(df)
+    create_detrended_rates()
+    # df = read_detrended_rates()
+    # print(df)
