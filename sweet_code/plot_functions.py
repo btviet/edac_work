@@ -17,6 +17,7 @@ from matplotlib.dates import YearLocator
 from matplotlib.ticker import MultipleLocator
 from old_sweet_comparison import read_cme_validation_results_old
 from parameters import (
+    IMA_COLOR,
     BRAT_GREEN,
     DETRENDED_EDAC_COLOR,
     FONTSIZE_AXES_LABELS,
@@ -2076,6 +2077,10 @@ def plot_mex_ima_bg_counts_time_interval(start_date, end_date):
 
 def plot_ima_counts_and_sweet(start_date, end_date):
     # df_ima = read_mex_ima_bg_counts()
+    df_raw = read_rawedac()
+    df_raw = df_raw[(df_raw["datetime"] >= start_date) & (df_raw["datetime"] <= end_date)]
+
+
     df_ima = clean_up_mex_ima_bg_counts()
     df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
     df_sweet = read_detrended_rates()
@@ -2084,43 +2089,65 @@ def plot_ima_counts_and_sweet(start_date, end_date):
     fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True,
                                    figsize=(8, 6))
     
-    ax1.plot(df_sweet["date"], df_sweet["daily_rate"],
+    ax1.plot(df_ima["datetime"], df_ima["bg_counts"],
+             label="IMA background counts",
+             color=IMA_COLOR)
+    
+    ax4 = ax1.twinx()
+    ax4.scatter(df_raw["datetime"], df_raw["edac"],
+                label='Raw MEX EDAC',
+                color=RAW_EDAC_COLOR,
+                marker='o',
+                s=5)
+    
+    #ax0.scatter(df_raw["datetime"], df_raw["edac"],
+    #            label='Raw MEX EDAC',
+    #            color=RAW_EDAC_COLOR,
+    #            linewidth=2,)
+    ax2.plot(df_sweet["date"], df_sweet["daily_rate"],
              marker='o',
              color=RATE_EDAC_COLOR,
              label='MEX EDAC count rate')
     
-    ax1.plot(df_sweet["date"], df_sweet["gcr_component"],
+    ax2.plot(df_sweet["date"], df_sweet["gcr_component"],
              marker='o',
              color=RATE_FIT_COLOR,
              label='GCR component')
     
-    ax2.plot(df_sweet["date"], df_sweet["detrended_rate"],
+    ax3.plot(df_sweet["date"], df_sweet["detrended_rate"],
              marker='o',
-             color=DETRENDED_EDAC_COLOR)
+             color=DETRENDED_EDAC_COLOR,
+             label='Detrended EDAC count rate')
     
-    ax2.axhline(
+    ax3.axhline(
         UPPER_THRESHOLD, label='Noise threshold',
         linestyle='dashed',
         color=THRESHOLD_COLOR)
     
-    ax3.plot(df_ima["datetime"], df_ima["bg_counts"])
+    
     ax3.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
-    ax1.set_ylabel("Count rate", fontsize=FONTSIZE_AXES_LABELS)
-    ax2.set_ylabel("Detrended count rate", fontsize=FONTSIZE_AXES_LABELS)
-    ax3.set_ylabel("IMA background counts", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("Count rate", fontsize=FONTSIZE_AXES_LABELS)
+    ax3.set_ylabel("Detrended count rate", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("IMA bg. counts", fontsize=FONTSIZE_AXES_LABELS)
+    ax4.set_ylabel("MEX EDAC count", fontsize=FONTSIZE_AXES_LABELS)
     # ax3.set_ylabel('EDAC standardized count rate', fontsize=12)
 
-    fig.suptitle("SWEET and IMA background counts for January 2012 event",
+    fig.suptitle("MEX EDAC and IMA bg. counts for January 2012 event",
                 fontsize=FONTSIZE_TITLE,
                  y=0.95)
     
-    ax1.yaxis.set_major_locator(MultipleLocator(4))
-    ax1.yaxis.set_minor_locator(MultipleLocator(1))
-    ax1.set_ylim([-1, df_sweet["daily_rate"].max()+4])
     ax2.yaxis.set_major_locator(MultipleLocator(4))
     ax2.yaxis.set_minor_locator(MultipleLocator(1))
+    ax2.set_ylim([-1, df_sweet["daily_rate"].max()+4])
+    ax3.yaxis.set_major_locator(MultipleLocator(4))
+    ax3.yaxis.set_minor_locator(MultipleLocator(1))
+
+    ax4.yaxis.set_major_locator(MultipleLocator(10))
+    ax4.yaxis.set_minor_locator(MultipleLocator(5))
+
     max_y = df_sweet["detrended_rate"].max()
     ax2.set_ylim([-1, max_y+4])
+    ax4.set_ylim([df_raw["edac"].min()-2, df_raw["edac"].max()+2])
 
     weeks_in_interval = (end_date-start_date).days//7
     major_ticks_locations = [
@@ -2131,24 +2158,35 @@ def plot_ima_counts_and_sweet(start_date, end_date):
     ax3.set_xticks(major_ticks_locations)
     ax3.xaxis.set_minor_locator(mdates.DayLocator())
 
-    ax3.set_yscale('log')
+    ax1.set_yscale('log')
     ax3.tick_params(axis="x", rotation=0)
-    ax3.yaxis.tick_right()
-    ax3.yaxis.set_label_position("right")
+    ax4.yaxis.tick_left()
+    ax4.yaxis.set_label_position("left")
+
     ax1.yaxis.tick_right()
     ax1.yaxis.set_label_position("right")
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position("right")
 
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax3.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
     ax3.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
     ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
-    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
-    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax4.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax4.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
     ax1.grid()
     ax2.grid()
     ax3.grid()
-
-    ax1.legend()
+    ax3.legend()
+    ax2.legend(loc='upper left')
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles4, labels4 = ax4.get_legend_handles_labels()
+    handles = handles1 + handles4
+    labels = labels1 + labels4
+    ax1.legend(handles, labels, loc='upper left')
     plt.show()
     # print(df_ima)
     df_ima.to_csv("test_ima.txt")
@@ -2167,13 +2205,13 @@ def plot_ima_counts_all():
 
 
 def compare_sweet_and_ima_bg(eventdate):
-    start_date = eventdate - pd.Timedelta(days=14)
-    end_date = eventdate + pd.Timedelta(days=14)
+    start_date = eventdate - pd.Timedelta(days=7)
+    end_date = eventdate + pd.Timedelta(days=7)
     plot_ima_counts_and_sweet(start_date, end_date)
 
-    start_date = eventdate - pd.Timedelta(days=14)
-    end_date = eventdate + pd.Timedelta(days=14)
-    plot_raw_edac_scatter(start_date, end_date)
+    start_date = eventdate - pd.Timedelta(days=10)
+    end_date = eventdate + pd.Timedelta(days=10)
+    # plot_raw_edac_scatter(start_date, end_date)
 
 
 if __name__ == "__main__":
@@ -2224,5 +2262,5 @@ if __name__ == "__main__":
     # plot_sweet_events_binned()
     # plot_mex_ima_bg_counts_time_interval(start_date, end_date)
     # plot_ima_counts_all()
-    currentdate = datetime.strptime("2012-01-27", "%Y-%m-%d")
+    currentdate = datetime.strptime("2005-09-08", "%Y-%m-%d")
     compare_sweet_and_ima_bg(currentdate)
