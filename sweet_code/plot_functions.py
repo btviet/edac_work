@@ -50,6 +50,7 @@ from read_from_database import (
     read_forbush_decreases_rad,
     read_sep_events_maven,
     read_sep_events_rad,
+    read_mex_safe_modes,
 )
 from scipy.signal import savgol_filter
 from validate_cme_events import read_cme_validation_results
@@ -780,9 +781,9 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
         # fontsize=16)
         current_type = event_type_list[count]
         print("current_type: ", current_type)
-        fig.suptitle(f'MSL/RAD SEP start date: {str(date.date())}',
-                     fontsize=16)
-
+        # fig.suptitle(f'MSL/RAD SEP start date: {str(date.date())}',
+        #              fontsize=16)
+        fig.suptitle(f'{str(date.date())}')
         # fig.suptitle(str(date.date()) + ". " + str(current_type),
         # fontsize=16)
         plt.tight_layout(pad=2.0)
@@ -2290,6 +2291,14 @@ def plot_ima_with_solar_cycle():
     plt.show()
 
 
+def create_sweet_mex_safe_modes_plots():
+    print("---- Creating plots of MEX Safe Modes -------")
+    df_dates = read_mex_safe_modes()
+    date_list = df_dates["occurrence_date"].tolist()
+    event_type_list = ['SEP?']*len(date_list)
+    folder_name = "mex_safe_modes"
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name, event_type_list)
+
 if __name__ == "__main__":
     # plot_ima_counts_all()
     # currentdate = datetime.strptime("2005-09-08", "%Y-%m-%d")
@@ -2298,7 +2307,8 @@ if __name__ == "__main__":
     end_date = datetime.strptime("2024-01-05", "%Y-%m-%d")
     # plot_ima_counts_and_sweet(start_date, end_date)
 
-    plot_mex_ima_bg_counts_time_interval(start_date, end_date)
+    # plot_mex_ima_bg_counts_time_interval(start_date, end_date)
     # startdate = currentdate - pd.Timedelta(days=14)
     # enddate = currentdate + pd.Timedelta(days=14)
     # show_timerange(startdate, enddate)
+    create_sweet_mex_safe_modes_plots()
