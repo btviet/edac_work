@@ -148,9 +148,26 @@ def create_sep_table():
         print(row_string)
 
 
+def read_mex_safe_modes():
+    """
+    Reads the MEX Safe Modes which
+    has been converted to a .csv file
+    from the database   
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe containing dates of safe modes
+    """
+    df = pd.read_csv(DATABASE_DIR / 'safemodes.csv',
+                     skiprows=0, sep=",",
+                     parse_dates=["occurrence_date"], date_format='%d/%m/%Y')
+    return df[["occurrence_date"]]
+
 if __name__ == "__main__":
     # df = read_sep_event_dates()
     # df = read_sep_events_rad()
     # df = read_forbush_decreases_rad()
-    create_fd_table()
+    # create_fd_table()
     # create_sep_table()
+    df = read_mex_safe_modes()
