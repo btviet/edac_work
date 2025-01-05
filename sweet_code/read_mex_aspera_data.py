@@ -1,6 +1,6 @@
 from parameters import MEX_ASPERA_DIR 
 import pandas as pd
-
+from scipy.signal import savgol_filter
 
 ima_bg_counts_folder = "mex_aspera_ima_background"
 
@@ -27,6 +27,14 @@ def create_ima_background_counts_df():
     
 
 def read_mex_ima_bg_counts():
+    """
+    Returns:
+        Pandas DataFrame with three columns:
+            datetime
+            bg_counts  
+            total_counts
+
+    """
     path = MEX_ASPERA_DIR / ima_bg_counts_folder
     df = pd.read_csv(path / 'mex_ima_background_counts.txt',
                      sep = '\t',
@@ -41,8 +49,47 @@ def clean_up_mex_ima_bg_counts():
     df = df[df["bg_counts"]>=0.5]
     return df
 
+import matplotlib.pyplot as plt
+
+def apply_sg_filter_to_ima_bg_counts():
+
+    df = read_mex_ima_bg_counts()
+
+    print(df.sort_values(by="bg_counts", ascending=False))
+    df = df[df["bg_counts"]>=0.5]
+    df = df[df["bg_counts"]<3000]
+    df["smoothed"] = savgol_filter(df['bg_counts'],
+                               100, 2)
+    df = df[df["smoothed"]>= 0.1]
+
+    # plt.figure()
+    #  df = df[df["smoothed"]<5]
+    # plt.hist(df["smoothed"])
+    # plt.show()
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True,
+                                   figsize=(8, 5))
+    ax1.plot(df['datetime'], df['bg_counts'])
+    # df = df[df["bg_counts"]>=0.5]
+    # df = df[df["bg_counts"]<3000]
+    # ax0 = ax1.twinx()
+    # ax0.plot(df['datetime'], df['bg_counts'])
+
+    ax2.plot(df['datetime'], df['smoothed'], label="smoothed")
+    ax1.set_yscale('log')
+    ax2.set_yscale('log')
+    ax1.set_ylim([10e-3, 10e6])
+    ax2.set_ylim([10e-6, 10e4])
+    ax2.set_xlabel("Date")
+    ax1.set_ylabel("Counts")
+    ax2.set_ylabel("Counts")
+    ax1.grid()
+    ax2.grid()
+    plt.show()
 
 def resample_mex_ima_bg_counts():
+    """
+    Find the highest count value for each day
+    """
     df = clean_up_mex_ima_bg_counts()
     df.set_index('datetime', inplace=True)
     daily_max = df.resample('D')['bg_counts'].max()
@@ -54,9 +101,12 @@ def resample_mex_ima_bg_counts():
    
 if __name__ == "__main__":
     # create_ima_background_counts_df()
-    #df = read_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
-    #print(df.iloc[0:10])
-    df = resample_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
-    print(df.iloc[0:20])
-    #df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
-    #print(df.iloc[40:60])
+    # df = read_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
+    # print(df.iloc[0:10])
+    # df = resample_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
+    # print(df.iloc[0:20])
+    # df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
+    # print(df.iloc[40:60])
+    apply_sg_filter_to_ima_bg_counts()
+    # df = read_mex_ima_bg_counts()
+    # print(df)

@@ -621,10 +621,10 @@ def show_timerange(startdate, enddate):
     print(df)
     fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True,
                                         figsize=(10, 7.5))
-    # ax1.scatter(filtered_raw["datetime"], filtered_raw["edac"],
-    # label="MEX EDAC", s=3, color=RAW_EDAC_COLOR)
-    ax1.scatter(df["date"], df["edac_first"],
-                label="MEX EDAC", color=RAW_EDAC_COLOR)
+    ax1.scatter(filtered_raw["datetime"], filtered_raw["edac"],
+                label="MEX EDAC", s=3, color=RAW_EDAC_COLOR)
+    #ax1.scatter(df["date"], df["edac_first"],
+    #            label="MEX EDAC", color=RAW_EDAC_COLOR)
 
     ax2.plot(df["date"], df["daily_rate"], marker="o",
              label="EDAC count rate", color=RATE_EDAC_COLOR)
@@ -2039,13 +2039,14 @@ def plot_zero_set_and_detrended():
                  fontsize=FONTSIZE_TITLE, y=0.94)
     plt.show()
 
+# IMA 
 
 def plot_mex_ima_bg_counts_time_interval(start_date, end_date):
     df = read_mex_ima_bg_counts()
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
     fig, ax = plt.subplots()
     print(df)
-    ax.scatter(df['datetime'], df['bg_counts'], s=0.5,
+    ax.plot(df['datetime'], df['bg_counts'],
                label="Background counts")
     # ax.scatter(df['datetime'], df['total_counts'], s=0.5,
     #           label="Total counts")
@@ -2066,20 +2067,19 @@ def plot_mex_ima_bg_counts_time_interval(start_date, end_date):
     ax.tick_params(axis="x", rotation=0)
     ax.set_yscale('log')
     ax.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
-    ax.set_ylabel("Logarithm of counts",  fontsize=FONTSIZE_AXES_LABELS)
+    ax.set_ylabel("Counts",  fontsize=FONTSIZE_AXES_LABELS)
     ax.legend()
-    ax.set_title("MEX/ASPERA-3 IMA counts for September 2017", fontsize=FONTSIZE_TITLE,
+    ax.set_title("MEX/ASPERA-3 IMA counts for December 2023", fontsize=FONTSIZE_TITLE,
                  pad=2)
     ax.grid()
     plt.show()
     
 
-
 def plot_ima_counts_and_sweet(start_date, end_date):
     # df_ima = read_mex_ima_bg_counts()
     df_raw = read_rawedac()
     df_raw = df_raw[(df_raw["datetime"] >= start_date) & (df_raw["datetime"] <= end_date)]
-
+    print(df_raw)
 
     df_ima = clean_up_mex_ima_bg_counts()
     df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
@@ -2191,6 +2191,7 @@ def plot_ima_counts_and_sweet(start_date, end_date):
     # print(df_ima)
     df_ima.to_csv("test_ima.txt")
 
+
 def plot_ima_counts_all():
     # df_ima = read_mex_ima_bg_counts()
     df_ima = clean_up_mex_ima_bg_counts()
@@ -2199,7 +2200,14 @@ def plot_ima_counts_all():
                                    figsize=(8, 5))
     ax.plot(df_ima['datetime'], df_ima['bg_counts'])
     ax.set_yscale('log')
-
+    ax.minorticks_on()
+    ax.xaxis.set_major_locator(YearLocator(4))
+    ax.xaxis.set_minor_locator(YearLocator(1))
+    ax.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax.set_ylabel("Counts",  fontsize=FONTSIZE_AXES_LABELS)
+    ax.grid()
     # ax.plot(df_ima['datetime'], df_ima['total_counts'])
     plt.show()
 
@@ -2214,53 +2222,83 @@ def compare_sweet_and_ima_bg(eventdate):
     # plot_raw_edac_scatter(start_date, end_date)
 
 
-if __name__ == "__main__":
-    # plot_raw_edac()
-    # create_stormy_plots()
-    # plot_detrended_rates()
-    # plot_rates_only()
-    # plot_rolling_rate()
-    # plot_solar_cycle()
-    # plot_rates_all()
-    # plot_histogram_rates()
-    # plot_raw_and_zerosetcorrected()
-    # plot_zero_set_correction()
-    # currentdate = datetime.strptime("2017-09-11", "%Y-%m-%d")
-    # startdate = currentdate - pd.Timedelta(days=21)
-    # enddate = currentdate + pd.Timedelta(days=21)
-    # plot_detrended_rates()
-    # plot_zero_set_and_detrended()
-    # show_timerange_counter_countrate(startdate, enddate)
-    # plot_raw_edac_scatter()
-    # start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
-    # end_date = datetime.strptime("2024-01-21", "%Y-%m-%d")
-    # show_timerange(startdate, enddate)
-    # startdate = currentdate - pd.Timedelta(days=7)
-    # enddate = currentdate + pd.Timedelta(days=7)
-    
+def plot_ima_with_solar_cycle():
+    # df_ima = read_mex_ima_bg_counts()
+    df_ima = clean_up_mex_ima_bg_counts()
 
-    # df = read_detrended_rates()
-    # df.sort_values(by="detrended_rate", inplace=True, ascending=False)
-    # print(df.iloc[20:30])
-    # show_timerange_counter_countrate(startdate, enddate)
-    # plot_raw_and_zerosetcorrected()
-    # plot_histogram_rates()
-    # group_extra_seps()
-    # plot_sweet_events_binned()
-    # plot_gcr_fit_ssn()
-    # create_msl_rad_dates_sep_plots()
-    # plot_rates_only()
-    # plot_zero_set_correction()
-    # create_msl_rad_dates_sep_plots()
-    # create_msl_rad_fd_dates_sweet_found()
-    # plot_detrended_rates_with_solar_cycle()
-    # plot_gcr_fit_ssn()
-    # create_msl_rad_dates_sep_plots()
-    # plot_solar_cycle()
-    # plot_detrended_rates()
-    # plot_variable_noise_threshold()
-    # plot_sweet_events_binned()
-    # plot_mex_ima_bg_counts_time_interval(start_date, end_date)
+    start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
+    end_date = datetime.strptime("2024-07-31", "%Y-%m-%d")
+    df_sun = process_sidc_ssn()
+    index_exact = np.where(df_sun["date"] == start_date)[0][0]
+    index_end = np.where(df_sun["date"] == end_date)[0][0]
+    df_sun = df_sun.iloc[index_exact:index_end]
+
+    sunspots_smoothed = savgol_filter(
+        df_sun["daily_sunspotnumber"], SUNSPOTS_SAVGOL, 3
+    )
+
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax1.plot(df_ima["datetime"], df_ima["bg_counts"],
+             label='MEX IMA background counts',
+             color=DETRENDED_EDAC_COLOR,  # BRAT_GREEN,
+             linewidth=2)
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Counts",
+                   fontsize=FONTSIZE_AXES_LABELS,
+                   color=DETRENDED_EDAC_COLOR)
+    ax2 = ax1.twinx()
+
+    ax2.plot(df_sun["date"], df_sun["daily_sunspotnumber"],
+            label='Daily sunspot number',
+             color=SSN_COLOR,  # BRAT_GREEN,
+             linewidth=2,
+             alpha=1)
+    
+    ax2.plot(df_sun["date"], sunspots_smoothed,
+            label='Daily smoothed sunspot number',
+            color=BRAT_GREEN,
+            linewidth=2,
+            alpha=1)
+
+    ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("Sunspot number [#]",
+                   fontsize=FONTSIZE_AXES_LABELS,
+                   color=SSN_COLOR)
+    # ax2.set_ylim([-120, max(sunspots_smoothed + 100)])
+    major_x_locator = YearLocator(4)
+    ax2.xaxis.set_major_locator(major_x_locator)
+    ax2.minorticks_on()
+    ax1.set_yscale('log')
+
+    minor_x_locator = YearLocator(10)
+    ax2.xaxis.set_minor_locator(minor_x_locator)
+    ax1.grid()
+    major_y_locator = MultipleLocator(50)
+    ax2.yaxis.set_major_locator(major_y_locator)
+    minor_y_locator = MultipleLocator(25)
+    ax2.yaxis.set_minor_locator(minor_y_locator)
+
+    ax1.tick_params(which='minor', length=6)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='minor', length=6)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
+    ax2.legend(fontsize=FONTSIZE_LEGENDS, loc="upper right", bbox_to_anchor=(0.9, 1))
+    ax1.grid()
+
+    plt.show()
+
+
+if __name__ == "__main__":
     # plot_ima_counts_all()
-    currentdate = datetime.strptime("2005-09-08", "%Y-%m-%d")
-    compare_sweet_and_ima_bg(currentdate)
+    # currentdate = datetime.strptime("2005-09-08", "%Y-%m-%d")
+    
+    start_date = datetime.strptime("2023-12-01", "%Y-%m-%d")
+    end_date = datetime.strptime("2024-01-05", "%Y-%m-%d")
+    # plot_ima_counts_and_sweet(start_date, end_date)
+
+    plot_mex_ima_bg_counts_time_interval(start_date, end_date)
+    # startdate = currentdate - pd.Timedelta(days=14)
+    # enddate = currentdate + pd.Timedelta(days=14)
+    # show_timerange(startdate, enddate)
