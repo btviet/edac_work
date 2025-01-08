@@ -99,6 +99,19 @@ def resample_mex_ima_bg_counts():
 
     return result
    
+
+
+def read_aspera_sw_moments():
+    column_headers = ["datetime", "density", "speed", "temperature", "flag"]
+    df = pd.read_csv(MEX_ASPERA_DIR/ 'MomentsOrb.ascii.txt',
+                     delim_whitespace=True,
+                     names=column_headers,
+                     parse_dates = ["datetime"],
+                     skiprows=22)
+    df = df[df["flag"]==0] 
+    return df
+
+
 if __name__ == "__main__":
     # create_ima_background_counts_df()
     # df = read_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
@@ -107,6 +120,7 @@ if __name__ == "__main__":
     # print(df.iloc[0:20])
     # df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
     # print(df.iloc[40:60])
-    apply_sg_filter_to_ima_bg_counts()
+    read_aspera_sw_moments()
+    # apply_sg_filter_to_ima_bg_counts()
     # df = read_mex_ima_bg_counts()
     # print(df)
