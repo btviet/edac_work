@@ -5,7 +5,7 @@ import pandas as pd
 from detect_sw_events import read_sweet_sep_dates
 from parameters import TOOLS_OUTPUT_DIR
 from processing_edac import read_rawedac, read_zero_set_correct
-
+import matplotlib.pyplot as plt
 
 def find_missing_dates():
     df = read_rawedac()
@@ -59,6 +59,25 @@ def find_time_interval_in_dataset():
     print(sliced_df)
 
 
+def find_sampling_frequency_in_time_interval():
+    df = read_rawedac()
+    start_date = pd.to_datetime('2011-06-04 12:00:00')
+    end_date = pd.to_datetime('2011-06-09 12:00:00')
+    df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
+
+    df['time_difference'] = df['datetime'].diff()
+    df['time_difference_in_minutes'] = \
+        df['time_difference'].dt.total_seconds() / 60
+    
+    print(df)
+
+    if not os.path.exists(TOOLS_OUTPUT_DIR):
+        os.makedirs(TOOLS_OUTPUT_DIR)
+    df.to_csv(TOOLS_OUTPUT_DIR / f'sampling_frequency_{start_date.date()}_{end_date.date()}.txt',
+              sep="\t",
+              index=False)
+
+
 def find_sampling_frequency():
     df = read_rawedac()
     print(df)
@@ -80,9 +99,9 @@ def find_sampling_frequency():
     df = df.sort_values(by="time_difference_in_minutes")
     grouped_df = df.groupby('time_difference_in_minutes').count()
 
-    bins = [0, 0.5, 1, 5, 10, 60, 24*60]  # Define the interval edges
-    bins = [0, 0.1, 0.5, 1, 5, 10, 60, 24*60]  # Define the interval edges
-    # Label for each interval
+    bins = [0, 0.5, 1, 5, 10, 60, 24*60]  
+    bins = [0, 0.1, 0.5, 1, 5, 10, 60, 24*60]  
+
     labels = ['0-0.1', '0.1-0.5', '0.5-1', '1-5', '5-10', '10-60', '60-1440']
 
     df['binned'] = pd.cut(df['time_difference_in_minutes'], bins=bins,
@@ -97,14 +116,14 @@ def find_sampling_frequency():
               sep="\t",
               index=False)
 
-    # plt.figure()
-    # plt.plot(df['datetime'], df['time_difference_in_minutes'])
-    # plt.show()
+    plt.figure()
+    plt.plot(df['datetime'], df['time_difference_in_minutes'])
+    plt.show()
 
-    # plt.figure()
-    # plt.hist(df['time_difference_in_minutes'], bins=100)
-    # plt.xlabel('Time difference in minutes')
-    # plt.show()
+    plt.figure()
+    plt.hist(df['time_difference_in_minutes'], bins=100)
+    plt.xlabel('Time difference in minutes')
+    plt.show()
 
 
 def investigate_stormy_days():
@@ -139,7 +158,8 @@ if __name__ == "__main__":
     # find_sampling_frequency()
     # find_missing_dates()
     # read_missing_dates()
-    find_sampling_frequency()
+    # find_sampling_frequency()
+    find_sampling_frequency_in_time_interval()
     # find_sampling_frequency()
     # find_last_reading_of_each_day()
     # check_if_date_in_dataset()
