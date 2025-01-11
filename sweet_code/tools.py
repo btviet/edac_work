@@ -61,8 +61,8 @@ def find_time_interval_in_dataset():
 
 def find_sampling_frequency_in_time_interval():
     df = read_rawedac()
-    start_date = pd.to_datetime('2011-06-04 12:00:00')
-    end_date = pd.to_datetime('2011-06-09 12:00:00')
+    start_date = pd.to_datetime('2012-01-23 12:00:00')
+    end_date = pd.to_datetime('2012-01-30 12:00:00')
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
 
     df['time_difference'] = df['datetime'].diff()
@@ -70,6 +70,8 @@ def find_sampling_frequency_in_time_interval():
         df['time_difference'].dt.total_seconds() / 60
     
     print(df)
+
+    print(df['time_difference_in_minutes'].max())
 
     if not os.path.exists(TOOLS_OUTPUT_DIR):
         os.makedirs(TOOLS_OUTPUT_DIR)
