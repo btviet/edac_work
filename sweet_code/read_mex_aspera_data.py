@@ -86,7 +86,7 @@ def apply_sg_filter_to_ima_bg_counts():
     ax2.grid()
     plt.show()
 
-def resample_mex_ima_bg_counts():
+def find_largest_daily_mex_ima_bg_counts():
     """
     Find the highest count value for each day
     """
@@ -98,9 +98,17 @@ def resample_mex_ima_bg_counts():
     result.reset_index(inplace=True)
 
     return result
-   
 
+def resample_mex_ima_bg_counts():
+    df = read_mex_ima_bg_counts()
+    print(df)
+    df['median_resampled'] = df['bg_counts'].rolling(window=20).median()
 
+    print(df)
+
+    plt.figure()
+    plt.plot(df['datetime'], df['median_resampled'])
+    plt.show()
 def read_aspera_sw_moments():
     column_headers = ["datetime", "density", "speed", "temperature", "flag"]
     df = pd.read_csv(MEX_ASPERA_DIR/ 'MomentsOrb.ascii.txt',
@@ -109,6 +117,7 @@ def read_aspera_sw_moments():
                      parse_dates = ["datetime"],
                      skiprows=22)
     df = df[df["flag"]==0] 
+    df['datetime'] = df['datetime'].dt.tz_localize(None)
     return df
 
 
@@ -120,7 +129,9 @@ if __name__ == "__main__":
     # print(df.iloc[0:20])
     # df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
     # print(df.iloc[40:60])
-    read_aspera_sw_moments()
+    # read_aspera_sw_moments()
+    resample_mex_ima_bg_counts()
+
     # apply_sg_filter_to_ima_bg_counts()
     # df = read_mex_ima_bg_counts()
     # print(df)
