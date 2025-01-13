@@ -38,6 +38,8 @@ from parameters import (
     THRESHOLD_COLOR,
     UPPER_THRESHOLD,
     ZEROSET_COLOR,
+    RAD_E_COLOR,
+    RAD_B_COLOR 
 )
 from processing_edac import (
     read_rawedac,
@@ -51,6 +53,7 @@ from read_from_database import (
     read_sep_events_maven,
     read_sep_events_rad,
     read_mex_safe_modes,
+    read_rad_onsets,
 )
 from scipy.signal import savgol_filter
 from validate_cme_events import read_cme_validation_results
@@ -60,6 +63,7 @@ from read_mex_aspera_data import (
     read_mex_ima_bg_counts, 
     clean_up_mex_ima_bg_counts,
     read_aspera_sw_moments)
+from read_msl_rad_data import read_msl_rad_doses
 
 
 
@@ -2280,8 +2284,8 @@ def plot_ima_counts_and_sweet_v2(start_date, end_date):
     #            fontsize=FONTSIZE_TITLE,
     #             y=0.95)
     
-    ax2.yaxis.set_major_locator(MultipleLocator(5))
-    ax2.yaxis.set_minor_locator(MultipleLocator(2.5))
+    ax2.yaxis.set_major_locator(MultipleLocator(10))
+    ax2.yaxis.set_minor_locator(MultipleLocator(5))
     ax3.yaxis.set_major_locator(MultipleLocator(2))
     ax3.yaxis.set_minor_locator(MultipleLocator(1))
 
@@ -2498,6 +2502,7 @@ def plot_aspera_sw_moments(start_date, end_date):
     plt.tight_layout(pad=1.0)
     plt.show()
 
+
 def create_sweet_ima_plots_for_largest_sweet_events():
     df_sweet = read_detrended_rates()
     #print(df_sweet)
@@ -2512,6 +2517,7 @@ def create_sweet_ima_plots_for_largest_sweet_events():
 
         plot_ima_counts_and_sweet_v2(start_date, end_date)
 
+
 def plot_ima_sweet_samplewise(start_time, end_time):
     """
     To investigate timing
@@ -2522,7 +2528,7 @@ def plot_ima_sweet_samplewise(start_time, end_time):
 
     df_ima = clean_up_mex_ima_bg_counts()
     df_ima = df_ima[(df_ima["datetime"] >= start_time) & (df_ima["datetime"] <= end_time)]
-
+    df_ima = df_ima[df_ima["bg_counts"]<100]
     fig, (ax1, ax2) = plt.subplots(2, sharex=True,
                                    figsize=(10, 6))
     
@@ -2537,22 +2543,22 @@ def plot_ima_sweet_samplewise(start_time, end_time):
                 color=RAW_EDAC_COLOR,
                 marker='o',
                 s=5)
-    
-    # ax1.axvline(x=datetime.strptime("2024-05-20 05:35:43", "%Y-%m-%d %H:%M:%S"),
-    #            linestyle='dashed',
-    #            color='black',
-    #            label='Start of IMA bg. counts enhancement')
-    #ax2.axvline(x=datetime.strptime("2024-05-20 05:35:43", "%Y-%m-%d %H:%M:%S"),
-    #            linestyle='dashed',
-    #            color='black',
-    #            label='Start of IMA bg. counts enhancement')
+
+    ax1.axvline(x=datetime.strptime("2022-02-15 22:52:40", "%Y-%m-%d %H:%M:%S"),
+                linestyle='dashed',
+                color='black',
+                label='Start of IMA bg. counts enhancement')
+    ax2.axvline(x=datetime.strptime("2022-02-15 22:52:40", "%Y-%m-%d %H:%M:%S"),
+                linestyle='dashed',
+                color='black',
+                label='Start of IMA bg. counts enhancement')
     
     ax2.set_xlabel("Time", fontsize=FONTSIZE_AXES_LABELS)
     ax2.set_ylabel("EDAC counter [#]", fontsize=FONTSIZE_AXES_LABELS)
     ax1.set_ylabel("IMA bg. counts", fontsize=FONTSIZE_AXES_LABELS)
 
 
-    fig.suptitle("MEX EDAC and IMA bg. counts on March 2012 event",
+    fig.suptitle("MEX EDAC and IMA bg. counts for Feb. 2022 event",
                 fontsize=FONTSIZE_TITLE,
                  y=0.95)
     
@@ -2598,29 +2604,231 @@ def plot_ima_sweet_samplewise(start_time, end_time):
     plt.show()
     # print(df_ima)
 
+
+def plot_msl_rad_all():
+    df = read_msl_rad_doses()
+    fig, ax1 = plt.subplots(figsize=(10, 7))
+    ax1.plot(df['datetime'], df['B_dose'], label='B dose rate')
+    ax1.plot(df['datetime'], df['E_dose'], label='E dose rate', linestyle='dashed')
+    
+    ax1.xaxis.set_major_locator(YearLocator(4))
+    ax1.xaxis.set_minor_locator(YearLocator(1))
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax1.yaxis.set_major_locator(MultipleLocator(2))
+    ax1.yaxis.set_minor_locator(MultipleLocator())
+    ax1.set_ylabel("Dose rate [mGy/day]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    
+    ax1.legend()
+    ax1.grid()
+    fig.suptitle("MSL RAD data",
+                 fontsize=FONTSIZE_TITLE)
+    plt.tight_layout(pad=1.0)
+
+    plt.show()
+
+def plot_msl_rad_sweet(start_date, end_date):
+    df_raw = read_rawedac()
+    df_raw = df_raw[(df_raw["datetime"] >= start_date) & (df_raw["datetime"] <= end_date)]
+    df_rad = read_msl_rad_doses()
+    df_rad = df_rad[(df_rad["datetime"] >= start_date) & (df_rad["datetime"] <= end_date)]
+    df_sweet = read_detrended_rates()
+    df_sweet = df_sweet[(df_sweet["date"] > start_date) & (df_sweet["date"] < end_date)]
+    fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True,
+                                        figsize=(10, 6))
+    ax1.plot(df_rad['datetime'], df_rad['B_dose'], label='B dose rate', marker='o',
+             markersize=2, color=RAD_B_COLOR)
+    ax1.plot(df_rad['datetime'], df_rad['E_dose'], label='E dose rate', marker='o',
+             markersize=2, color=RAD_E_COLOR)
+    #ax1.plot(df_rad['datetime'], df_rad['B_dose'], label='B dose rate', 
+    #         color=RAD_B_COLOR)
+    #ax1.plot(df_rad['datetime'], df_rad['E_dose'], label='E dose rate',
+    #          color=RAD_E_COLOR)
+    
+    ax2.scatter(df_raw["datetime"], df_raw["edac"],
+            label='MEX EDAC counter value',
+            color=RAW_EDAC_COLOR,
+            marker='o',
+            s=5)
+    
+    ax3.plot(df_sweet["date"], df_sweet["detrended_rate"],
+             marker='o',
+             color=DETRENDED_EDAC_COLOR,
+             label='Detrended EDAC count rate')
+    
+    ax3.axhline(
+        UPPER_THRESHOLD, label='Noise threshold',
+        linestyle='dashed',
+        color=THRESHOLD_COLOR)
+    
+    ax3.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("EDAC counter [#]", fontsize=FONTSIZE_AXES_LABELS)
+    ax3.set_ylabel("Count rate [#/day]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Dose rate [mGy/day]", fontsize=FONTSIZE_AXES_LABELS)
+    
+    # ax1.yaxis.set_major_locator(MultipleLocator(2))
+    # ax1.yaxis.set_minor_locator(MultipleLocator(1))
+    # ax2.yaxis.set_major_locator(MultipleLocator(2))
+    # ax2.yaxis.set_minor_locator(MultipleLocator(1))
+    ax3.yaxis.set_major_locator(MultipleLocator(2))
+    ax3.yaxis.set_minor_locator(MultipleLocator(1))
+
+    """
+    weeks_in_interval = (end_date-start_date).days//7
+    major_ticks_locations = [
+        start_date
+        + pd.Timedelta(days=7 * i)
+        for i in range(weeks_in_interval+1)
+    ]
+
+    ax3.set_xticks(major_ticks_locations)
+    """
+    ax3.xaxis.set_major_locator(mdates.DayLocator(3))
+    ax3.xaxis.set_minor_locator(mdates.DayLocator())
+    # major_ticks_locations =  [pd.to_datetime('2024-07-27 00:00:00') + pd.Timedelta(days=3 * i) for i in range(-10, 10)]  # One week away, up to five weeks
+    # ax3.set_xticks(major_ticks_locations)
+
+    lower_xlim = df_sweet['date'].iloc[0] - pd.Timedelta(days=0)
+    higher_xlim = df_sweet['date'].iloc[-1] + pd.Timedelta(days=0)
+    ax3.set_xlim(lower_xlim, higher_xlim)
+    # ax3.set_ylim(-1, 4)
+    
+    
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax3.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax3.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position("right")
+
+    ax1.grid()
+    ax2.grid()
+    ax3.grid()
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    # fig.suptitle("MSL/RAD and SWEET during Oct 2013 event",
+    #             fontsize=FONTSIZE_TITLE)
+    #plt.tight_layout(pad=1.0)
+
+    
+    if not os.path.exists(LOCAL_DIR / "events/sweet_rad_comparison"):
+        os.makedirs(LOCAL_DIR / "events/sweet_rad_comparison")
+
+    plt.savefig(LOCAL_DIR / 'events/sweet_rad_comparison' /
+                f'sweet_rad_{str(start_date.date())}.png',
+                dpi=300, transparent=False)
+    print("figure created")
+    plt.show()
+
+    df_rad['time_difference'] = df_rad['datetime'].diff()
+    df_rad['time_difference_in_minutes'] = \
+        df_rad['time_difference'].dt.total_seconds() / 60
+    
+    print("Max time difference: ", 
+          df_rad['time_difference_in_minutes'].max())
+    df_rad.to_csv(LOCAL_DIR / 'events/sweet_rad_comparison'/ "rad_data_temp.txt")
+    # df_rad.to_csv("test_rad.txt")
+
+    row_B= df_rad[(df_rad["B_dose"] == df_rad['B_dose'].max())]
+    print(row_B[['datetime', 'B_dose', 'B_dose_err']])
+    row_E= df_rad[(df_rad["E_dose"] == df_rad['E_dose'].max())]
+    print(row_E[['datetime', 'E_dose', 'E_dose_err']])
+    
+
+def plot_rad_sweet_samplewise(start_time, end_time, onset_time):
+    df_raw = read_rawedac()
+    df_raw = df_raw[(df_raw["datetime"] >= start_time) & (df_raw["datetime"] <= end_time)]
+    df_rad = read_msl_rad_doses()
+    df_rad = df_rad[(df_rad["datetime"] >= start_time) & (df_rad["datetime"] <= end_time)]
+
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True,
+                                        figsize=(10, 6))
+    ax1.plot(df_rad['datetime'], df_rad['B_dose'], label='B dose rate', marker='o',
+             markersize=5, color=RAD_B_COLOR)
+    ax1.plot(df_rad['datetime'], df_rad['E_dose'], label='E dose rate', marker='o',
+             markersize=5, color=RAD_E_COLOR)
+
+    
+    ax2.scatter(df_raw["datetime"], df_raw["edac"],
+            label='MEX EDAC counter value',
+            color=RAW_EDAC_COLOR,
+            marker='o',
+            s=5)
+
+    ax1.axvline(x=onset_time,
+                linestyle='dashed',
+                color='black',
+                label='Onset time of RAD event')
+    ax2.axvline(x=onset_time,
+                linestyle='dashed',
+                color='black',
+                label='Onset time of RAD event')
+    
+    ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("EDAC counter [#]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Dose rate [mGy/day]", fontsize=FONTSIZE_AXES_LABELS)
+
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax1.grid()
+    ax2.grid()
+
+    ax1.legend()
+    ax2.legend()
+    if not os.path.exists(LOCAL_DIR / "events/sweet_rad_comparison"):
+        os.makedirs(LOCAL_DIR / "events/sweet_rad_comparison")
+
+    plt.savefig(LOCAL_DIR / 'events/sweet_rad_comparison' /
+                f'timing_sweet_rad_{str(onset_time.date())}.png',
+                dpi=300, transparent=False)
+    plt.close()
+
+
+def create_rad_event_plots():
+    rad_dates = read_rad_onsets()['onset_time'].tolist()
+    for date in rad_dates:
+        print(date)
+        start_time = pd.to_datetime(date.date()-pd.Timedelta(days=1))
+        end_time = pd.to_datetime(date.date()+pd.Timedelta(days=2))-pd.Timedelta(minutes=1)
+        print(start_time, end_time)
+        plot_rad_sweet_samplewise(start_time, end_time, date)
+
+
 if __name__ == "__main__":
-    # plot_ima_counts_all()  April 3rd, 2023
-    currentdate = datetime.strptime("2012-03-09", "%Y-%m-%d")
+    # plot_msl_rad_all()
+    # plot_ima_counts_all()11/04/2013 13/03/2023
+    # create_rad_event_plots()
+    currentdate = datetime.strptime("2024-07-27", "%Y-%m-%d")
     #plot_raw_edac_scatter(datetime.strptime("2011-06-03", "%Y-%m-%d"), 
     #                      datetime.strptime("2011-06-10", "%Y-%m-%d"))
     # start_date = datetime.strptime("2023-12-01", "%Y-%m-%d")
     # end_date = datetime.strptime("2024-01-05", "%Y-%m-%d")
     start_date = currentdate - pd.Timedelta(days=7)
     end_date = currentdate + pd.Timedelta(days=7)
+    # plot_msl_rad_sweet(start_date, end_date)
     # create_sweet_ima_plots_for_largest_sweet_events()
     # plot_raw_edac_scatter(start_date, end_date)
     # show_timerange(start_date, end_date)
     # plot_raw_and_zerosetcorrected()
     #  plot_raw_and_zerosetcorrected()
-    # plot_ima_counts_and_sweet(start_date, end_date)
-    start_time =  datetime.strptime("2012-03-04 00:00:00", "%Y-%m-%d %H:%M:%S")
-    end_time =  datetime.strptime("2012-03-11 23:59:45", "%Y-%m-%d %H:%M:%S")
-
-    # plot_ima_counts_and_sweet_v2(start_date, end_date)
-    plot_ima_sweet_samplewise(start_time, end_time)
+    # plot_ima_counts_and_sweet(start_date, end_date)10/09/2014 21:05:00
     
+    start_time =  datetime.strptime("2014-09-09 00:00:00", "%Y-%m-%d %H:%M:%S")
+    end_time =  datetime.strptime("2014-09-11 23:59:45", "%Y-%m-%d %H:%M:%S")
     
-
+    #plot_rad_sweet_samplewise(start_time, end_time)
+    #plot_ima_counts_and_sweet_v2(start_date, end_date)
+    #plot_ima_sweet_samplewise(start_time, end_time)
+    
     # plot_aspera_sw_moments(start_date, end_date)
     # plot_mex_ima_bg_counts_time_interval(start_date, end_date)
     # startdate = currentdate - pd.Timedelta(days=14)
