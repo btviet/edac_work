@@ -43,7 +43,7 @@ def read_sep_events_maven():
 def read_sep_events_rad():
     df = pd.read_csv(DATABASE_DIR / 'sep_database.csv',
                      skiprows=0, sep=",",
-                     parse_dates=["onset_time"], date_format='%d/%m/%Y')
+                     parse_dates=["onset_time"], date_format='%d/%m/%Y %H:%M:%S')
     df.dropna(subset=['instrument'], inplace=True)  # Drop NaN values
     rad_detections = df[df['instrument'].str.contains('RAD')]
     rad_detections.sort_values(by='onset_time', inplace=True)
@@ -164,10 +164,20 @@ def read_mex_safe_modes():
                      parse_dates=["occurrence_date"], date_format='%d/%m/%Y')
     return df[["occurrence_date"]]
 
+
+def read_rad_onsets():
+
+    df = pd.read_csv(DATABASE_DIR / 'rad_onsets.csv',
+                     skiprows=0, names=['onset_time'])
+                     
+    df['onset_time'] = pd.to_datetime(df['onset_time'], format='%d/%m/%Y %H:%M')
+    return df
+
 if __name__ == "__main__":
     # df = read_sep_event_dates()
     # df = read_sep_events_rad()
     # df = read_forbush_decreases_rad()
     # create_fd_table()
     # create_sep_table()
-    df = read_mex_safe_modes()
+    read_rad_onsets()
+    # df = read_mex_safe_modes()
