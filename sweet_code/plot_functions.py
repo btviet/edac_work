@@ -3,6 +3,7 @@ from datetime import datetime
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import pandas as pd
 from detect_sw_events import (
@@ -64,6 +65,7 @@ from read_mex_aspera_data import (
     clean_up_mex_ima_bg_counts,
     read_aspera_sw_moments)
 from read_msl_rad_data import read_msl_rad_doses
+from read_maven_sep_data import read_maven_sep_flux_data
 
 
 
@@ -2475,7 +2477,7 @@ def plot_aspera_sw_moments(start_date, end_date):
     # ax2.set_xticks(major_ticks)
     # minor_ticks = pd.date_range(start=start_date, end=end_date, freq='D')
     # ax2.set_xticks(minor_ticks, minor=True)
-    currentdate = datetime.strptime("2012-01-27", "%Y-%m-%d")
+    currentdate = datetime.strptime("2024-05-20", "%Y-%m-%d")
     major_ticks_locations = [
         currentdate
         + pd.Timedelta(days=7 * i)
@@ -2628,6 +2630,7 @@ def plot_msl_rad_all():
     plt.tight_layout(pad=1.0)
 
     plt.show()
+
 
 def plot_msl_rad_sweet(start_date, end_date):
     df_raw = read_rawedac()
@@ -2802,18 +2805,79 @@ def create_rad_event_plots():
         print(start_time, end_time)
         plot_rad_sweet_samplewise(start_time, end_time, date)
 
+# MAVEN/SEP
 
+def plot_maven_sep_ion_data_heatmap(filename):
+    df = read_maven_sep_flux_data(filename)
+    #df = df[["datetime", "20.1-21.5 keV/n,Ion", "21.6-23.0 keV/n,Ion"]]
+    df_flux = df.iloc[:,3:31]
+    df_datetime = df["datetime"]
+    df = pd.concat([df_datetime, df_flux], axis=1)
+
+    df.set_index('datetime', inplace=True)
+    df = df.iloc[:, ::-1]
+    #df_datetime = df["datetime"]
+    #df_flux = df[["20.1-21.5 keV/n,Ion", "21.6-23.0 keV/n,Ion"]]
+    #print(df_flux)
+    # df = pd.concat([df_datetime, df_flux], axis=1)
+    # df.set_index('datetime', inplace=True)
+        # Reshape the DataFrame to have energy channels as rows
+    #heatmap_data = df.iloc[:, 3:].T  # Transpose so channels (1-21) are rows
+    #heatmap_data = heatmap_data.iloc[::-1]
+# Set the 'datetime' row as the new column header and transpose the DataFrame
+    # df = df.iloc[1:].T  # Drop the 'datetime' row and transpose
+
+
+    # Plot the heatmap
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(df.T, cmap='viridis', cbar=True)
+    daily_ticks = df.index.normalize().drop_duplicates()
+
+# Set x-ticks and labels
+    plt.xticks(ticks=range(0, len(df.index), len(df) // len(daily_ticks)), labels=daily_ticks.date, rotation=20)
+
+    # Customize labels
+    plt.xlabel('Datetime')
+    plt.ylabel('Energy Range')
+    plt.title('Heatmap of Energy Flux over Time')
+    plt.show()
+
+def plot_stack_maven_sep_ion_data(filename):
+    df = read_maven_sep_flux_data(filename)
+    df_flux = df.iloc[:,3:31]
+    df_datetime = df["datetime"]
+    df = pd.concat([df_datetime, df_flux], axis=1)
+    fig, ax1 = plt.subplots(figsize=(8, 6))
+    for i in range(1,len(df_flux.columns)+1): 
+        ax1.plot(df["datetime"], df.iloc[:,i], label=df.columns[i]
+                 )
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Ion flux [keV/n]", fontsize=FONTSIZE_AXES_LABELS)
+
+    ax1.set_yscale('log')
+    ax1.legend(loc='upper left', bbox_to_anchor=(1.1, 1), borderaxespad=0.)
+    ax1.grid()
+    plt.tight_layout(rect=[0, 0, 1, 1])  # Adjust the plot area to leave room on the right for the legend
+
+    plt.show()
+
+    
 if __name__ == "__main__":
+    filename = 'maven_f_flux_hourly_sept_2017'
+    plot_stack_maven_sep_ion_data(filename)
+    # plot_maven_sep_ion_data_heatmap(filename)
     # plot_msl_rad_all()
     # plot_ima_counts_all()11/04/2013 13/03/2023
     # create_rad_event_plots()
-    currentdate = datetime.strptime("2024-07-27", "%Y-%m-%d")
+    currentdate = datetime.strptime("2024-07-23", "%Y-%m-%d")
     #plot_raw_edac_scatter(datetime.strptime("2011-06-03", "%Y-%m-%d"), 
     #                      datetime.strptime("2011-06-10", "%Y-%m-%d"))
     # start_date = datetime.strptime("2023-12-01", "%Y-%m-%d")
     # end_date = datetime.strptime("2024-01-05", "%Y-%m-%d")
     start_date = currentdate - pd.Timedelta(days=7)
     end_date = currentdate + pd.Timedelta(days=7)
+    #show_timerange(start_date, end_date)
+
     # plot_msl_rad_sweet(start_date, end_date)
     # create_sweet_ima_plots_for_largest_sweet_events()
     # plot_raw_edac_scatter(start_date, end_date)
