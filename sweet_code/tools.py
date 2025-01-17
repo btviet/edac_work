@@ -187,6 +187,16 @@ def find_detrended_count_rate_sep_database():
     print("file saved")
 
 
+def find_multiple_edac_increments():
+    df = read_rawedac()
+    df['edac_diff'] = df['edac'].diff()
+    filtered_df = df[df['edac_diff']>=3]
+    print(filtered_df)
+    not_valid_dates = filtered_df["datetime"].dt.date
+    print(not_valid_dates)
+    not_valid_dates.to_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+              sep='\t', index=False)  # Save to file
+
 if __name__ == "__main__":
     # edac_increments()
     # find_time_interval_in_dataset()
@@ -199,4 +209,5 @@ if __name__ == "__main__":
     # find_last_reading_of_each_day()
     # check_if_date_in_dataset()
     # read_detrended_count_rate_slice()
-    read_detrended_count_rate_slice()
+    # read_detrended_count_rate_slice()
+    find_multiple_edac_increments()
