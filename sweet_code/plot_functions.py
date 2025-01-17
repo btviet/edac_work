@@ -55,8 +55,10 @@ from read_from_database import (
     read_sep_events_rad,
     read_mex_safe_modes,
     read_rad_onsets,
+    read_sep_database_events,
 )
 from scipy.signal import savgol_filter
+from scipy.stats import percentileofscore
 from validate_cme_events import read_cme_validation_results
 from validate_forbush_decreases import read_msl_rad_fd_validation_result
 from validate_sep_events import read_sep_validation_results
@@ -761,6 +763,12 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
             (temp_2024["date"] > startdate) &
             (temp_2024["date"] < enddate)
         ]
+        vicinity_df = temp_2024[
+            (temp_2024["date"] > date - pd.Timedelta(days=2)) &
+            (temp_2024["date"] < date + pd.Timedelta(days=2))]
+        
+ 
+   
         fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(10, 7))
         ax1.scatter(temp_raw["datetime"], temp_raw["edac"],
                     label="Raw EDAC", s=3,
@@ -808,10 +816,17 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
         print("current_type: ", current_type)
         # fig.suptitle(f'MSL/RAD SEP start date: {str(date.date())}',
         #              fontsize=16)
-        fig.suptitle(f'{str(date.date())}')
+        temp_raw = temp_raw[
+            (temp_raw["datetime"] > startdate) &
+            (temp_raw["datetime"] < enddate)
+        ]
+        detrended_rate = df.loc[df["date"].dt.date == date.date(), "detrended_rate"].values
+        max_detrended_rate = vicinity_df['detrended_rate'].max()
+        fig.suptitle(f'{str(date.date())}: {detrended_rate}, {max_detrended_rate}')
         # fig.suptitle(str(date.date()) + ". " + str(current_type),
         # fontsize=16)
         plt.tight_layout(pad=2.0)
+        
         plt.savefig(
             file_path / folder_name / f"{str(count)}_{date_string}",
             dpi=300,
@@ -820,7 +835,7 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
         # plt.show()
         plt.close()
         count += 1
-
+        
 
 def plot_histogram_rates():
     # Figure for thesis
@@ -840,18 +855,18 @@ def plot_histogram_rates():
     # bins = np.arange(
     #    min_rate, max_rate + binsize, binsize
     # )  # Choose the size of the bins
-    bin_edges = np.arange(int(min_rate)-1, int(max_rate)+1, 0.5)
+    bin_edges = np.arange(int(min_rate)-1, int(max_rate)+1, 0.25)
     print("bin_Edges: ", bin_edges)
     counts, bin_edges = np.histogram(data, bins=bin_edges,
                                      density=False)
     # bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=(8, 6))
     plt.hist(data, bins=bin_edges, color=DETRENDED_EDAC_COLOR,
              edgecolor="black")
-    plt.xticks(np.arange(int(min_rate)-1,
-                         int(max_rate)+1, 2))
+    plt.xticks(np.arange(int(min_rate)-2,
+                         int(max_rate)+1, 1))
     plt.gca().xaxis.set_minor_locator(
-        plt.MultipleLocator(1))
+        plt.MultipleLocator(0.5))
 
     plt.gca().yaxis.set_minor_locator(
         plt.MultipleLocator(100))
@@ -871,16 +886,73 @@ def plot_histogram_rates():
                 color="#EE7733", linestyle='dashed')
     """
 
-    plt.title("Detrended rate distribution",
+    plt.title("Detrended count rate distribution",
               fontsize=FONTSIZE_TITLE)
     plt.xlabel("Detrended count rate [#/day]",
                fontsize=FONTSIZE_AXES_LABELS)
     plt.ylabel("Occurrences", fontsize=FONTSIZE_AXES_LABELS)
-    plt.legend(fontsize=12)
-    plt.xlim(-2.5, 8)
+    plt.legend(fontsize=FONTSIZE_LEGENDS)
+    plt.xlim(-0.5, 6)
     plt.grid()
     plt.show()
 
+
+def plot_cumulative_detrended_rates():
+    df = read_detrended_rates()
+    sorted = np.sort(df["detrended_rate"])
+    cdf = np.arange(1, len(sorted) + 1) / len(sorted)
+    # print(cdf)
+    threshold = np.percentile(sorted, 90)
+    print(threshold)
+    percentile = percentileofscore(sorted, 2.3, kind="rank")
+    print(f"The value {2.3} is at the {percentile:.2f}th percentile.")
+
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    ax1.plot(sorted, cdf, marker='.', 
+             linestyle='none', 
+             label="CDF of detrended EDAC daily count rates",
+             color=DETRENDED_EDAC_COLOR)
+
+    ax1.axhline(
+        0.90,
+        label="0.90",
+        color=THRESHOLD_COLOR
+    )
+
+    ax1.set_xlabel("Detrended count rate [#/day]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Probability", fontsize=FONTSIZE_AXES_LABELS)
+
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax1.minorticks_on()
+
+    ax1.xaxis.set_major_locator(MultipleLocator(2))
+    ax1.xaxis.set_minor_locator(MultipleLocator(1))
+
+    ax1.yaxis.set_major_locator(MultipleLocator(0.25))
+    ax1.yaxis.set_minor_locator(MultipleLocator(0.125))
+    #plt.title("Cumulative Distribution Function")
+    #plt.xlabel("Values")
+    #plt.ylabel("Cumulative Probability")
+    #plt.legend()
+    ax1.legend()
+    ax1.grid()
+    plt.show()
+
+
+def create_sep_database_plots():
+    """Plot SWEET for all SEP dates 
+    in the database
+    """
+    df = read_sep_database_events()
+    date_list = df["onset_time"].tolist()
+    print("Creating plots of all SEP database event dates")
+    
+    #date_list = df_dates["date"].tolist()
+    event_type_list = df["instrument"].tolist()
+    folder_name = "sep_database_dates"
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name, event_type_list)
 
 def create_stormy_plots():
     """
@@ -2861,10 +2933,101 @@ def plot_stack_maven_sep_ion_data(filename):
 
     plt.show()
 
+
+def investigate_noise_threshold():
+    df = read_detrended_rates()
+    df = df[df["detrended_rate"]>= UPPER_THRESHOLD].sort_values(by="detrended_rate")
+    target_df = df[["date", "daily_rate", "detrended_rate"]].iloc[0:20]
+    target_dates = target_df["date"].tolist()
+
+    for date in target_dates:
+
+        start_time = date - pd.Timedelta(days=3)
+        end_time = date + pd.Timedelta(days=3)
+        df_raw = read_rawedac()
+        df_raw = df_raw[(df_raw["datetime"] >= start_time) & (df_raw["datetime"] <= end_time)]
+
+        df_ima = clean_up_mex_ima_bg_counts()
+        df_ima = df_ima[(df_ima["datetime"] >= start_time) & (df_ima["datetime"] <= end_time)]
+        df_ima = df_ima[df_ima["bg_counts"]<100]
+        fig, (ax1, ax2) = plt.subplots(2, sharex=True,
+                                    figsize=(10, 6))
+        
+        ax1.plot(df_ima["datetime"], df_ima["bg_counts"],
+                label="IMA background counts",
+                marker='o',
+                markersize=5,
+                color=IMA_COLOR)
+        
+        ax2.scatter(df_raw["datetime"], df_raw["edac"],
+                    label='MEX EDAC counter value',
+                    color=RAW_EDAC_COLOR,
+                    marker='o',
+                    s=5)
+        """
+        ax1.axvline(x=datetime.strptime("2022-02-15 22:52:40", "%Y-%m-%d %H:%M:%S"),
+                    linestyle='dashed',
+                    color='black',
+                    label='Start of IMA bg. counts enhancement')
+        ax2.axvline(x=datetime.strptime("2022-02-15 22:52:40", "%Y-%m-%d %H:%M:%S"),
+                    linestyle='dashed',
+                    color='black',
+                    label='Start of IMA bg. counts enhancement')
+        """
+        ax2.set_xlabel("Time", fontsize=FONTSIZE_AXES_LABELS)
+        ax2.set_ylabel("EDAC counter [#]", fontsize=FONTSIZE_AXES_LABELS)
+        ax1.set_ylabel("IMA bg. counts", fontsize=FONTSIZE_AXES_LABELS)
+
+        
+        fig.suptitle(f'{date}',
+                    fontsize=FONTSIZE_TITLE,
+                    y=0.95)
     
+        ax2.yaxis.set_major_locator(MultipleLocator(5))
+        ax2.yaxis.set_minor_locator(MultipleLocator(2.5))
+
+        ax1.set_yscale('log')
+        # ax1.yaxis.tick_right()
+        # ax1.yaxis.set_label_position("right")
+        # ax2.yaxis.tick_right()
+        # ax2.yaxis.set_label_position("right")
+        ax2.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 24)))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%b %#d %H'))
+        ax2.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0, 24, 12)))
+
+        # ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M')) 
+        # ax2.xaxis.set_minor_locator(mdates.HourLocator())
+
+        ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+        ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+        ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+        ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+        ax2.tick_params(axis="x", rotation=0)
+        # start_time = datetime(2024, 5, 20, 0, 0, 0)  
+        # end_time = datetime(2024, 5, 20, 23, 59, 59) 
+        # ax2.set_xlim(start_time, end_time)
+
+        ax1.grid()
+        ax2.grid()
+
+        ax2.legend(loc='lower right')
+        ax1.legend(loc='lower right')
+        plt.savefig(LOCAL_DIR / 'events/finetuning' /
+                f'{date.date()}.png',
+                dpi=300, transparent=False)
+        plt.close()
+
+
 if __name__ == "__main__":
     filename = 'maven_f_flux_hourly_sept_2017'
-    plot_stack_maven_sep_ion_data(filename)
+    #plot_stack_maven_sep_ion_data(filename)
+    # plot_cumulative_detrended_rates()
+    
+    # investigate_noise_threshold()
+    create_sep_database_plots()
+    
+    # plot_histogram_rates()
     # plot_maven_sep_ion_data_heatmap(filename)
     # plot_msl_rad_all()
     # plot_ima_counts_all()11/04/2013 13/03/2023

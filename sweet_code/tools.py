@@ -3,9 +3,12 @@ from datetime import datetime
 
 import pandas as pd
 from detect_sw_events import read_sweet_sep_dates
-from parameters import TOOLS_OUTPUT_DIR
+from detrend_edac import read_detrended_rates
+from parameters import TOOLS_OUTPUT_DIR, UPPER_THRESHOLD
 from processing_edac import read_rawedac, read_zero_set_correct
 import matplotlib.pyplot as plt
+from read_from_database import read_sep_database_events
+
 
 def find_missing_dates():
     df = read_rawedac()
@@ -61,8 +64,8 @@ def find_time_interval_in_dataset():
 
 def find_sampling_frequency_in_time_interval():
     df = read_rawedac()
-    start_date = pd.to_datetime('2012-01-23 12:00:00')
-    end_date = pd.to_datetime('2012-01-30 12:00:00')
+    start_date = pd.to_datetime('2024-05-19 12:00:00')
+    end_date = pd.to_datetime('2024-05-21 12:00:00')
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
 
     df['time_difference'] = df['datetime'].diff()
@@ -71,7 +74,7 @@ def find_sampling_frequency_in_time_interval():
     
     print(df)
 
-    print(df['time_difference_in_minutes'].max())
+    print("Max time difference: ", df['time_difference_in_minutes'].max())
 
     if not os.path.exists(TOOLS_OUTPUT_DIR):
         os.makedirs(TOOLS_OUTPUT_DIR)
@@ -154,6 +157,36 @@ def edac_increments():
     print(df)
 
 
+def read_detrended_count_rate_slice():
+    df = read_detrended_rates()
+    df = df[df["detrended_rate"]>= UPPER_THRESHOLD].sort_values(by="detrended_rate")
+    target_df = df[["date", "daily_rate", "detrended_rate"]].iloc[0:20]
+    target_df.to_csv(
+        TOOLS_OUTPUT_DIR /
+        f"{UPPER_THRESHOLD}.csv",
+        index=False)
+
+def find_detrended_count_rate_sep_database():
+    df_database = read_sep_database_events()
+    date_list = df_database["onset_time"].tolist()
+    df = read_detrended_rates()
+    print(df)
+    max_list = []
+    for date in date_list:
+        print(date.date())
+        vicinity_df = df[
+            (df["date"].dt.date >= date.date() - pd.Timedelta(days=1)) &
+            (df["date"].dt.date <= date.date() + pd.Timedelta(days=1))]
+        
+        max_detrended_rate = vicinity_df['detrended_rate'].max()
+        max_list.append([date, max_detrended_rate])
+    max_list_df = pd.DataFrame(max_list)
+    max_list_df.columns = ["event_date", "max_detrended_count_rate"]
+    max_list_df.to_csv(TOOLS_OUTPUT_DIR / 'max_detrended_count_rate_for_each_sep_event', 
+                       sep='\t', index=False)
+    print("file saved")
+
+
 if __name__ == "__main__":
     # edac_increments()
     # find_time_interval_in_dataset()
@@ -161,7 +194,9 @@ if __name__ == "__main__":
     # find_missing_dates()
     # read_missing_dates()
     # find_sampling_frequency()
-    find_sampling_frequency_in_time_interval()
+    # find_sampling_frequency_in_time_interval()
     # find_sampling_frequency()
     # find_last_reading_of_each_day()
     # check_if_date_in_dataset()
+    # read_detrended_count_rate_slice()
+    read_detrended_count_rate_slice()

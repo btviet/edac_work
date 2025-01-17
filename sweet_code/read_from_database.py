@@ -19,7 +19,8 @@ def read_sep_database_events() -> pd.DataFrame:
 
     df = pd.read_csv(DATABASE_DIR / 'sep_database.csv',
                      skiprows=0, sep=",",
-                     parse_dates=["onset_time"], date_format='%d/%m/%Y')
+                     parse_dates=["onset_time"], date_format='%d/%m/%Y',
+                     encoding='utf-8')
 
     return df[["onset_time", "instrument"]]
 
@@ -179,5 +180,6 @@ if __name__ == "__main__":
     # df = read_forbush_decreases_rad()
     # create_fd_table()
     # create_sep_table()
-    read_rad_onsets()
+    read_sep_database_events() 
+    #read_rad_onsets()
     # df = read_mex_safe_modes()
