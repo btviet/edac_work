@@ -7,11 +7,12 @@ from parameters import (
     LOWER_THRESHOLD,
     SWEET_EVENTS_DIR,
     UPPER_THRESHOLD,
+    TOOLS_OUTPUT_DIR
 )
 from processing_edac import read_resampled_df
 
 sep_dates_filename = 'sweet_sep_dates.txt'
-sep_events_filename = 'sep_events_sweet.txt'
+sep_events_filename = f'sep_events_sweet_{UPPER_THRESHOLD}.txt'
 extra_sep_days_filename = 'extra_sweet_sep_days.txt'
 extra_sep_events_filename = 'extra_sweet_sep_events.txt'
 zerodays_filename = 'sweet_zerodays.txt'
@@ -31,8 +32,17 @@ def find_sweet_sep():
     print("----- Finding SEP events in the EDAC data --------")
     df = read_detrended_rates()
     spike_df = df.copy()
+
+
     peaks = spike_df[(spike_df['detrended_rate'] > UPPER_THRESHOLD)].copy()
+    # Remove invalid dates
+    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+                                parse_dates=["datetime"])
+
+    date_list = invalid_dates["datetime"].dt.date.tolist()
     peaks = peaks.sort_values(by='date')
+    peaks = peaks[~peaks["date"].dt.date.isin(date_list)]
+
 
     print("The number of days above the threshold of ",
           UPPER_THRESHOLD, " is: ", len(peaks))
@@ -79,7 +89,7 @@ def test_sweet_sep_variable_threshold():
     print(spike_df["threshold"].min(), spike_df["threshold"].max())
     peaks = spike_df[(spike_df['detrended_rate'] > spike_df["threshold"])].copy()
     peaks = peaks.sort_values(by='date')
-
+    
     print("The number of days above the threshold of ",
           UPPER_THRESHOLD, " is: ", len(peaks))
     peaks.to_csv(SWEET_EVENTS_DIR / sep_dates_filename,
@@ -369,9 +379,9 @@ def detect_sweet_events_rolling_rate():
 if __name__ == "__main__":
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
-    #find_sweet_sep()
-    test_sweet_sep_variable_threshold()
-    create_sw_event_list()
+    find_sweet_sep()
+    # test_sweet_sep_variable_threshold()
+    # create_sw_event_list()
     # find_sweet_sep_by_consecutive_days()
     # find_sweet_sep()
     # read_second_method_sweet_sep()
