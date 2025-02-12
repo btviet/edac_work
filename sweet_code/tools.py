@@ -64,8 +64,8 @@ def find_time_interval_in_dataset():
 
 def find_sampling_frequency_in_time_interval():
     df = read_rawedac()
-    start_date = pd.to_datetime('2024-05-19 12:00:00')
-    end_date = pd.to_datetime('2024-05-21 12:00:00')
+    start_date = pd.to_datetime('2024-03-10 12:00:00')
+    end_date = pd.to_datetime('2024-03-30 12:00:00')
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
 
     df['time_difference'] = df['datetime'].diff()
@@ -166,6 +166,8 @@ def read_detrended_count_rate_slice():
         f"{UPPER_THRESHOLD}.csv",
         index=False)
 
+
+
 def find_detrended_count_rate_sep_database():
     df_database = read_sep_database_events()
     date_list = df_database["onset_time"].tolist()
@@ -197,6 +199,7 @@ def find_multiple_edac_increments():
     not_valid_dates.to_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
               sep='\t', index=False)  # Save to file
 
+
 if __name__ == "__main__":
     # edac_increments()
     # find_time_interval_in_dataset()
@@ -206,8 +209,10 @@ if __name__ == "__main__":
     # find_sampling_frequency()
     # find_sampling_frequency_in_time_interval()
     # find_sampling_frequency()
+    # find_missing_dates()
     # find_last_reading_of_each_day()
     # check_if_date_in_dataset()
+    # print("skrr")
+    # find_multiple_edac_increments()
     # read_detrended_count_rate_slice()
-    # read_detrended_count_rate_slice()
-    find_multiple_edac_increments()
+    find_detrended_count_rate_sep_database()

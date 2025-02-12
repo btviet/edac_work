@@ -1,6 +1,6 @@
 import pandas as pd
 from parameters import DATABASE_DIR
-
+from datetime import datetime
 
 def read_sep_database_events() -> pd.DataFrame:
     """
@@ -22,7 +22,14 @@ def read_sep_database_events() -> pd.DataFrame:
                      parse_dates=["onset_time"], date_format='%d/%m/%Y',
                      encoding='utf-8')
 
-    return df[["onset_time", "instrument"]]
+    df_combined = (df.groupby("onset_time")["instrument"]
+                    .apply(lambda x: ", ".join(x.unique())) 
+                    .reset_index()
+                    )    
+    edac_end = datetime.strptime("2024-07-30 00:00:00", "%Y-%m-%d %H:%M:%S")
+    # only keep the entries in time period covered by MEX EDAC data
+    df_combined = df_combined[df_combined["onset_time"] <= edac_end]
+    return df_combined[["onset_time", "instrument"]]
 
 
 def read_sep_events_maven():
@@ -180,6 +187,8 @@ if __name__ == "__main__":
     # df = read_forbush_decreases_rad()
     # create_fd_table()
     # create_sep_table()
-    read_sep_database_events() 
+    
     #read_rad_onsets()
     # df = read_mex_safe_modes()
+    df = read_sep_database_events() 
+    #print(df)
