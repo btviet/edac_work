@@ -5,7 +5,7 @@ from file_paths import get_data_dir
 
 load_dotenv()
 
-UPPER_THRESHOLD: Final = 2.5
+UPPER_THRESHOLD: Final = 2.22 # 2.647  Previous was 2.5
 LOWER_THRESHOLD: Final = 0
 FD_NUMBER_DAYS: Final = 3
 SUNSPOTS_SAVGOL = 601
@@ -26,10 +26,11 @@ TOOLS_OUTPUT_DIR = LOCAL_DIR / "tools_output/"
 MAVEN_SEP_DIR = LOCAL_DIR / "maven_sep_data/"
 MEX_ASPERA_DIR = LOCAL_DIR / "mex_aspera_data/"
 MSL_RAD_DIR= LOCAL_DIR / "msl_rad_data/"
+EUHFORIA_DIR = LOCAL_DIR / "euhforia/"
 
 
 # colors from https://personal.sron.nl/~pault/#sec:qualitative
-RAW_EDAC_COLOR = "#332288"  # "#0077BB"
+RAW_EDAC_COLOR = "#247BA0" # "#88CCEE"  # "#0077BB"
 ZEROSET_COLOR =  "#332288" #"#E55F3F"
 RATE_EDAC_COLOR = "#33BBEE"
 RATE_FIT_COLOR = "#CC6677"
