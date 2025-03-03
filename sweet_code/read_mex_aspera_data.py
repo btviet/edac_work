@@ -109,6 +109,8 @@ def resample_mex_ima_bg_counts():
     plt.figure()
     plt.plot(df['datetime'], df['median_resampled'])
     plt.show()
+
+    
 def read_aspera_sw_moments():
     column_headers = ["datetime", "density", "speed", "temperature", "flag"]
     df = pd.read_csv(MEX_ASPERA_DIR/ 'MomentsOrb.ascii.txt',
@@ -121,6 +123,13 @@ def read_aspera_sw_moments():
     return df
 
 
+def read_ima_manual_events():
+    df = pd.read_csv(MEX_ASPERA_DIR / 'ima_manual_dates.csv',
+    parse_dates=['starting_date', 'end_date'])
+    # print(df)
+    sorted = df.sort_values(by="peak_bg_count")
+    print(sorted)
+    return df
 if __name__ == "__main__":
     # create_ima_background_counts_df()
     # df = read_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
@@ -130,7 +139,8 @@ if __name__ == "__main__":
     # df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
     # print(df.iloc[40:60])
     # read_aspera_sw_moments()
-    resample_mex_ima_bg_counts()
+    read_ima_manual_events()
+    #resample_mex_ima_bg_counts()
 
     # apply_sg_filter_to_ima_bg_counts()
     # df = read_mex_ima_bg_counts()

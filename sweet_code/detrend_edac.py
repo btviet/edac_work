@@ -7,8 +7,8 @@ from parameters import (
     PROCESSED_DATA_DIR,
     RATE_SAVGOL,
 )
-from processing_edac import read_resampled_df, read_rolling_rates
-from scipy.signal import savgol_filter
+from processing_edac import read_resampled_df
+#from scipy.signal import savgol_filter
 
 
 def savitzky_fit_gcr(rate_df):
@@ -150,6 +150,7 @@ def detrend():
 
 if __name__ == "__main__":
 
-    create_detrended_rates()
-    # df = read_detrended_rates()
-    # print(df)
+    #create_detrended_rates()
+    df = read_detrended_rates()
+    print(df.sort_values(by="detrended_rate"))
+    print(df["detrended_rate"].mean())
