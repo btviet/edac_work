@@ -8,7 +8,7 @@ from parameters import TOOLS_OUTPUT_DIR, UPPER_THRESHOLD
 from processing_edac import read_rawedac, read_zero_set_correct
 import matplotlib.pyplot as plt
 from read_from_database import read_sep_database_events
-from read_mex_aspera_data import read_aspera_sw_moments
+from read_mex_aspera_data import read_aspera_sw_moments, read_mex_ima_bg_counts
 
 def find_missing_dates():
     df = read_rawedac()
@@ -237,5 +237,23 @@ def calculate_avg_sw_moments():
     print(df['speed'].mean())
 
 
+
+def find_mex_aspera_sampling_interval():
+    currentdate = datetime.strptime("2023-02-16", "%Y-%m-%d")
+    start_date = currentdate - pd.Timedelta(days=14)
+    end_date = currentdate + pd.Timedelta(days=14)
+    #start_date = datetime.strptime("2023-02-14", "%Y-%m-%d")
+    #end_date = datetime.strptime("2023-02-28", "%Y-%m-%d")
+    df_ima = read_mex_ima_bg_counts()
+    df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
+
+
+    df_ima['time_difference'] = df_ima['datetime'].diff()
+    df_ima['time_difference_in_minutes'] = \
+        df_ima['time_difference'].dt.total_seconds() / 60
+    print(df_ima)
+    print(df_ima.sort_values(by='time_difference_in_minutes').iloc[0:2])
+
 if __name__ == "__main__":
-    calculate_avg_sw_moments()
+    # calculate_avg_sw_moments()
+    find_mex_aspera_sampling_interval()
