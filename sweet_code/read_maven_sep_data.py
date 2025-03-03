@@ -112,6 +112,10 @@ def test_sns():
 
 
 def read_maven_sep_flux_data(filename):
+    """
+    Reads files from
+    https://omniweb.gsfc.nasa.gov/cgi/nx1.cgi
+    """
     path = MAVEN_SEP_DIR / "omniweb/"
     fmt_filename = filename + '.fmt'
     data_filename = filename + '.lst'

@@ -22,6 +22,9 @@ def read_sep_database_events() -> pd.DataFrame:
                      parse_dates=["onset_time"], date_format='%d/%m/%Y',
                      encoding='utf-8')
 
+    df['instrument'] = df['instrument'].astype(str)
+
+
     df_combined = (df.groupby("onset_time")["instrument"]
                     .apply(lambda x: ", ".join(x.unique())) 
                     .reset_index()
@@ -29,6 +32,12 @@ def read_sep_database_events() -> pd.DataFrame:
     edac_end = datetime.strptime("2024-07-30 00:00:00", "%Y-%m-%d %H:%M:%S")
     # only keep the entries in time period covered by MEX EDAC data
     df_combined = df_combined[df_combined["onset_time"] <= edac_end]
+    #df_combined.to_csv(
+    #    "read_sep_database_events.txt",
+    #    sep="\t",
+    #    index=False,
+    #)  # Save selected raw EDAC to file
+
     return df_combined[["onset_time", "instrument"]]
 
 
@@ -41,11 +50,12 @@ def read_sep_events_maven():
     """
     df = pd.read_csv(DATABASE_DIR / 'sep_database.csv',
                      skiprows=0, sep=",",
-                     parse_dates=["onset_time"], date_format='%d/%m/%Y')
+                     parse_dates=["onset_time"])
     df.dropna(subset=['instrument'], inplace=True)  # Drop NaN values
     maven_detections = df[df['instrument'].str.contains('MAVEN')]
     maven_detections = maven_detections.sort_values(by='onset_time')
-    return maven_detections[["onset_time"]]
+    return maven_detections
+    # return maven_detections[["onset_time"]]
 
 
 def read_sep_events_rad():
@@ -62,9 +72,25 @@ def read_forbush_decreases_database():
     df = pd.read_csv(DATABASE_DIR / 'forbush_database.csv',
                      skiprows=0, sep=",",
                      parse_dates=["onset_time"], date_format='%d/%m/%Y')
-    df_cleaned = df[~df['source'].str.contains('Papaioannou')]
+    
+    
+    df['instrument'] = df['instrument'].astype(str)
+    df_combined = (df.groupby("onset_time")["instrument"]
+                    .apply(lambda x: ", ".join(x.unique())) 
+                    .reset_index()
+                    )    
+    edac_end = datetime.strptime("2024-07-30 00:00:00", "%Y-%m-%d %H:%M:%S")
+    # only keep the entries in time period covered by MEX EDAC data
+    df_combined = df_combined[df_combined["onset_time"] <= edac_end]
+    df_combined.to_csv(
+        "test222.txt",
+        sep="\t",
+        index=False,
+    )  # Save selected raw EDAC to file
+    return df_combined[["onset_time", "instrument"]]
+    # df_cleaned = df[~df['source'].str.contains('Papaioannou')]
 
-    return df_cleaned[["onset_time", "instrument"]]
+    #return df_cleaned[["onset_time", "instrument"]]
 
 
 def read_forbush_decreases_rad():
@@ -94,7 +120,20 @@ def read_forbush_decreases_maven():
     return maven_detections[["onset_time"]]
 
 
+
 def read_both_sep_fd_database_events():
+    sep_df = read_sep_database_events()
+    fd_df = read_forbush_decreases_database()
+
+    sep_df['type'] = 'SEP'
+    fd_df['type'] = 'Fd'
+    df = pd.concat([sep_df, fd_df])
+    df.sort_values(by='onset_time', inplace=True)
+    df.dropna(subset=['onset_time'], inplace=True)
+    return df
+
+
+def read_both_sep_fd_database_events_old():
     """
     Returns a Pandas Dataframe
     with all SEP events and Forbush decreases
@@ -105,15 +144,14 @@ def read_both_sep_fd_database_events():
         type: SEP/Fd
     """
     df_sep = pd.read_csv(DATABASE_DIR / 'sep_database.csv',
-                         skiprows=0, sep=",",
-                         parse_dates=["onset_time"], date_format='%d/%m/%Y')
-
+                     skiprows=0, sep=",",
+                     parse_dates=["onset_time"], date_format='%d/%m/%Y',
+                     encoding='utf-8')
     df_fd = pd.read_csv(DATABASE_DIR / 'forbush_database.csv',
-                        skiprows=0, sep=",",
-                        parse_dates=["onset_time"], date_format='%d/%m/%Y')
-    # df_fd = df_fd[~df_fd['source'].str.contains('Papaioannou')]
-    # df_fd = df_fd[~df_fd['source'].str.equals('Papaioannou et al. (2019)')]
-    df_fd = df_fd[df_fd['source'] != 'Papaioannou et al. (2019)']
+                     skiprows=0, sep=",",
+                     parse_dates=["onset_time"], date_format='%d/%m/%Y')
+
+
     df_sep = df_sep[["onset_time", "instrument"]]
     df_sep['type'] = 'SEP'
     df_fd = df_fd[["onset_time", "instrument"]]
@@ -187,8 +225,14 @@ if __name__ == "__main__":
     # df = read_forbush_decreases_rad()
     # create_fd_table()
     # create_sep_table()
-    
+    #df = read_sep_events_maven()
+    #print(df)
+    df =read_both_sep_fd_database_events()
+    print(df)
+    #df = read_forbush_decreases_database()
+    #print(df)
     #read_rad_onsets()
     # df = read_mex_safe_modes()
-    df = read_sep_database_events() 
+    #read_forbush_decreases_database()
+    #df = read_sep_database_events() 
     #print(df)

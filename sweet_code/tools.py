@@ -2,13 +2,13 @@ import os
 from datetime import datetime
 
 import pandas as pd
-from detect_sw_events import read_sweet_sep_dates
+from detect_sw_events import read_sweet_sep_dates, read_sweet_event_dates
 from detrend_edac import read_detrended_rates
 from parameters import TOOLS_OUTPUT_DIR, UPPER_THRESHOLD
 from processing_edac import read_rawedac, read_zero_set_correct
 import matplotlib.pyplot as plt
 from read_from_database import read_sep_database_events
-
+from read_mex_aspera_data import read_aspera_sw_moments
 
 def find_missing_dates():
     df = read_rawedac()
@@ -64,15 +64,19 @@ def find_time_interval_in_dataset():
 
 def find_sampling_frequency_in_time_interval():
     df = read_rawedac()
-    start_date = pd.to_datetime('2024-03-10 12:00:00')
-    end_date = pd.to_datetime('2024-03-30 12:00:00')
+    currentdate = datetime.strptime("2004-02-06", "%Y-%m-%d")
+    start_date = currentdate - pd.Timedelta(days=7)
+    end_date = currentdate + pd.Timedelta(days=7)
+
+    #start_date = pd.to_datetime('2005-05-20 12:00:00')
+    #end_date = pd.to_datetime('2005-05-30 12:00:00')
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
 
     df['time_difference'] = df['datetime'].diff()
     df['time_difference_in_minutes'] = \
         df['time_difference'].dt.total_seconds() / 60
     
-    print(df)
+    print(df.sort_values(by="time_difference_in_minutes"))
 
     print("Max time difference: ", df['time_difference_in_minutes'].max())
 
@@ -169,6 +173,10 @@ def read_detrended_count_rate_slice():
 
 
 def find_detrended_count_rate_sep_database():
+    """
+    for each verified SEP event in the data base,
+    find the maximum EDAC count rate
+    """
     df_database = read_sep_database_events()
     date_list = df_database["onset_time"].tolist()
     df = read_detrended_rates()
@@ -190,6 +198,9 @@ def find_detrended_count_rate_sep_database():
 
 
 def find_multiple_edac_increments():
+    """
+    Find invalid EDAC increases
+    """
     df = read_rawedac()
     df['edac_diff'] = df['edac'].diff()
     filtered_df = df[df['edac_diff']>=3]
@@ -200,19 +211,31 @@ def find_multiple_edac_increments():
               sep='\t', index=False)  # Save to file
 
 
+def read_detrended_df_in_timerange(): 
+    currentdate = datetime.strptime("2014-09-02", "%Y-%m-%d")
+    start_date = currentdate - pd.Timedelta(days=7)
+    end_date = currentdate + pd.Timedelta(days=3)
+
+    df = read_detrended_rates()
+    df = df[(df["date"] > start_date) & (df["date"] < end_date)]
+    sorted = df.sort_values(by='detrended_rate').iloc[-10:]
+    print(sorted)
+
+
+def find_durations_of_sweet_events():
+    df =read_sweet_event_dates()
+
+    df_sep = df[df["type"]=="SEP"]
+    df_fd = df[df["type"]=="Fd"]
+    print(df_sep["duration"].value_counts())
+    print(df_fd["duration"].value_counts())
+    #print(df)
+
+
+def calculate_avg_sw_moments():
+    df = read_aspera_sw_moments()
+    print(df['speed'].mean())
+
+
 if __name__ == "__main__":
-    # edac_increments()
-    # find_time_interval_in_dataset()
-    # find_sampling_frequency()
-    # find_missing_dates()
-    # read_missing_dates()
-    # find_sampling_frequency()
-    # find_sampling_frequency_in_time_interval()
-    # find_sampling_frequency()
-    # find_missing_dates()
-    # find_last_reading_of_each_day()
-    # check_if_date_in_dataset()
-    # print("skrr")
-    # find_multiple_edac_increments()
-    # read_detrended_count_rate_slice()
-    find_detrended_count_rate_sep_database()
+    calculate_avg_sw_moments()

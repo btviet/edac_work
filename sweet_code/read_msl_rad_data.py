@@ -1,4 +1,5 @@
 from parameters import MSL_RAD_DIR
+from datetime import datetime
 import pandas as pd
 
 def process_msl_rad_data():
@@ -18,6 +19,9 @@ def read_msl_rad_doses():
     df = pd.read_csv(MSL_RAD_DIR / 'msl_rad_doses.txt',
                      sep = '\t',
                      parse_dates=['datetime'])
+    df = df[
+        df["datetime"] < datetime.strptime("2024-07-31", "%Y-%m-%d")
+    ]
     return df
 
 

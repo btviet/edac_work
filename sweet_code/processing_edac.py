@@ -66,6 +66,8 @@ def create_zero_set_correct():
     print("This EDAC data set was zero-set ", len(indices), " times.")
     for i in range(0, len(indices)):
         prev_value = df.loc[[indices[i]-1]].values[-1][-1]
+        print("prev_value: ", prev_value)
+        print(df.loc[[indices[i]-1]])
         if i == len(indices)-1:  # The last time the EDAC counter goes to zero
             df.loc[indices[i]:, 'edac'] = \
                 df.loc[indices[i]:, 'edac'] + prev_value
@@ -210,8 +212,11 @@ def process_raw_edac():
 
 
 if __name__ == "__main__":
-    # create_zero_set_correct()
-    # create_resampled_edac()
+    create_zero_set_correct()
     # calculate_rolling_window_rate()
-    df = read_resampled_df()
-    print(df['daily_rate'].value_counts())
+    # df = read_rawedac()
+    # print(df)
+    # print(df['daily_rate'].value_counts())
+    #df = read_zero_set_correct()
+    #print(df)
+    

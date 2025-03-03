@@ -17,7 +17,7 @@ extra_sep_days_filename = 'extra_sweet_sep_days.txt'
 extra_sep_events_filename = 'extra_sweet_sep_events.txt'
 zerodays_filename = 'sweet_zerodays.txt'
 forbush_decrease_events_filename = 'sweet_forbush_decreases.txt'
-sweet_events_filename = 'sweet_events.txt'
+sweet_events_filename = f'sweet_events_{UPPER_THRESHOLD}.txt'
 stormy_days_filename = 'sweet_stormy_days.txt'
 
 
@@ -33,15 +33,14 @@ def find_sweet_sep():
     df = read_detrended_rates()
     spike_df = df.copy()
 
-
     peaks = spike_df[(spike_df['detrended_rate'] > UPPER_THRESHOLD)].copy()
     # Remove invalid dates
-    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases_corrected.txt",
                                 parse_dates=["datetime"])
 
     date_list = invalid_dates["datetime"].dt.date.tolist()
     peaks = peaks.sort_values(by='date')
-    peaks = peaks[~peaks["date"].dt.date.isin(date_list)]
+    peaks= peaks[~peaks["date"].dt.date.isin(date_list)]
 
 
     print("The number of days above the threshold of ",
@@ -118,7 +117,7 @@ def test_sweet_sep_variable_threshold():
     print(f"File {SWEET_EVENTS_DIR}\\{sep_events_filename} created")
 
 
-def find_sweet_sep_by_consecutive_days():
+def find_sweet_sep_by_consecutive_days(limit, duration):
     """
     Find SEP events by finding the dates where
     the detrended rates are above $0$
@@ -127,7 +126,7 @@ def find_sweet_sep_by_consecutive_days():
     print("----- Finding SEP events (second method) \
           in the EDAC data --------")
     detrended_df = read_detrended_rates()
-    rate_mask = (detrended_df['detrended_rate'] > 0)
+    rate_mask = (detrended_df['detrended_rate'] >limit)
     df = pd.DataFrame(rate_mask)
     df["date"] = detrended_df["date"]
     # Group the sequences of Trues and Falses together
@@ -136,21 +135,21 @@ def find_sweet_sep_by_consecutive_days():
     df = df[df['detrended_rate']]
     df["duration"] = df.groupby('group')['detrended_rate'].transform('size')
 
-    df = df[df["duration"] >= 4]
+    df = df[df["duration"] >= duration]
     print(f'The number of extra SEP days: {len(df)}')
-    df.to_csv(SWEET_EVENTS_DIR / extra_sep_days_filename,
+    df.to_csv(SWEET_EVENTS_DIR / f'extra_sweet_sep_days_{limit}_{duration}.txt',
               sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}\\{extra_sep_days_filename} created")
 
     df_grouped = df.groupby('group').first().reset_index()
     print(f'The number of extra SEP events: {len(df_grouped)}')
     df_grouped[["date", "duration"]].to_csv(
-        SWEET_EVENTS_DIR / extra_sep_events_filename,
+        SWEET_EVENTS_DIR / f'extra_sweet_sep_events_{limit}_{duration}.txt',
         sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}/ {extra_sep_events_filename} created")
 
 
-def read_extra_sweet_sep_events():
+def read_extra_sweet_sep_events(limit, duration):
     """
     Returns a Pandas DataFrame
     with the dates where the
@@ -161,12 +160,13 @@ def read_extra_sweet_sep_events():
         duration: how long the count rates were above 0
         type: SEP or Fd. Here it is always SEP.
     """
-    df = pd.read_csv(SWEET_EVENTS_DIR / extra_sep_events_filename,
+    df = pd.read_csv(SWEET_EVENTS_DIR / f'extra_sweet_sep_events_{limit}_{duration}.txt',
                      skiprows=0, sep="\t", parse_dates=['date'])
     sep_df = pd.DataFrame(df[['date', 'duration']],
                           columns=['date', 'duration'])
     sep_df['type'] = 'SEP'
     return sep_df
+
 
 
 def find_sweet_forbush_decreases():
@@ -176,7 +176,7 @@ def find_sweet_forbush_decreases():
     """
     print("------ Finding SWEET Forbush decreases --------")
     resampled_df = read_resampled_df()
-    print("resampled_df: ", resampled_df)
+    # print("resampled_df: ", resampled_df)
     zero_mask = (resampled_df['daily_rate'] == 0)
     df = pd.DataFrame(zero_mask)
     df.rename(columns={'daily_rate': 'zero_rate'}, inplace=True)
@@ -205,6 +205,19 @@ def find_sweet_forbush_decreases():
 
 
 def read_sweet_sep_events():
+    """
+    Returns a Pandas Dataframe with the
+    start dates of each SWEET SEP event,
+    and the duration
+    Columns:
+        start_date: Date at noon
+        duration: how many days above UPPER_THRESHOLD
+    """
+    df = pd.read_csv(SWEET_EVENTS_DIR / sep_events_filename,
+                     skiprows=0, sep="\t", parse_dates=['start_date'])
+    return df
+
+def read_sweet_sep_events_old():
     """
     Returns a Pandas Dataframe with the
     start dates of each SWEET SEP event,
@@ -379,24 +392,17 @@ def detect_sweet_events_rolling_rate():
 if __name__ == "__main__":
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
-    find_sweet_sep()
-    # test_sweet_sep_variable_threshold()
-    # create_sw_event_list()
-    # find_sweet_sep_by_consecutive_days()
+    #detect_sweet_events()
+    create_stormy_days_list()
+    # df = read_sweet_forbush_decreases()
+    # print(df)
     # find_sweet_sep()
-    # read_second_method_sweet_sep()
-    # find_sweet_forbush_decreases()
-    # read_sweet_sep_events()
-    # read_sweet_fds()
-    # read_sweet_forbush_decreases()
-    # read_sweet_sep_events()
-    # read_sweet_sep_dates()
-    # read_sweet_zero_days()
-    # create_sw_event_list()
-    # read_sweet_event_dates()
-    # find_sweet_forbush_decreases()
-    # create_stormy_days_list()
-    # read_sweet_event_dates()
-    # find_sweet_sep_by_consecutive_days()
-    # detect_sweet_events()
-    # detect_sweet_events_rolling_rate()
+    # df = read_sweet_sep_dates()
+    # df = read_sweet_sep_events()
+
+    # find_sweet_sep_by_consecutive_days(0, 3)
+    # find_sweet_sep_by_consecutive_days(0, 4)
+    # find_sweet_sep_by_consecutive_days(0, 5)
+    # find_sweet_sep_by_consecutive_days(1, 4)
+    # find_sweet_sep_by_consecutive_days(1.5, 4)
+    # find_sweet_sep_by_consecutive_days(2, 4)
