@@ -64,7 +64,7 @@ def find_time_interval_in_dataset():
 
 def find_sampling_frequency_in_time_interval():
     df = read_rawedac()
-    currentdate = datetime.strptime("2004-02-06", "%Y-%m-%d")
+    currentdate = datetime.strptime("2018-04-16", "%Y-%m-%d")
     start_date = currentdate - pd.Timedelta(days=7)
     end_date = currentdate + pd.Timedelta(days=7)
 
@@ -76,7 +76,7 @@ def find_sampling_frequency_in_time_interval():
     df['time_difference_in_minutes'] = \
         df['time_difference'].dt.total_seconds() / 60
     
-    print(df.sort_values(by="time_difference_in_minutes"))
+    print(df.sort_values(by="time_difference_in_minutes").iloc[-20:])
 
     print("Max time difference: ", df['time_difference_in_minutes'].max())
 
@@ -171,7 +171,6 @@ def read_detrended_count_rate_slice():
         index=False)
 
 
-
 def find_detrended_count_rate_sep_database():
     """
     for each verified SEP event in the data base,
@@ -239,21 +238,49 @@ def calculate_avg_sw_moments():
 
 
 def find_mex_aspera_sampling_interval():
-    currentdate = datetime.strptime("2023-02-16", "%Y-%m-%d")
-    start_date = currentdate - pd.Timedelta(days=14)
-    end_date = currentdate + pd.Timedelta(days=14)
+    currentdate = datetime.strptime("2012-01-27", "%Y-%m-%d")
+    #start_date = currentdate - pd.Timedelta(days=2)
+    #end_date = currentdate + pd.Timedelta(days=4)
     #start_date = datetime.strptime("2023-02-14", "%Y-%m-%d")
     #end_date = datetime.strptime("2023-02-28", "%Y-%m-%d")
     df_ima = read_mex_ima_bg_counts()
-    df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
+    print(df_ima)
+    #df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
 
 
     df_ima['time_difference'] = df_ima['datetime'].diff()
     df_ima['time_difference_in_minutes'] = \
         df_ima['time_difference'].dt.total_seconds() / 60
-    print(df_ima)
-    print(df_ima.sort_values(by='time_difference_in_minutes').iloc[0:2])
+    
+    #df_ima = df_ima[(df_ima["time_difference"] < pd.Timedelta(minutes=4))
+    #                & (df_ima["time_difference"] > pd.Timedelta(minutes=2))]
+    #print("filtered: ", df_ima)
+    #grouped_df = df_ima.groupby('time_difference_in_minutes').count()
+
+    #bins = [0, 0.5, 1, 5, 10, 60, 24*60]  
+    bins = [0, 2.5, 3.25, 10, 60, 24*60, float('inf')]  
+
+    labels = ['0-2.5', '2.5-3.25', '3.25-10', '10-60', '60-1440', '1440+']
+
+    df_ima['binned'] = pd.cut(df_ima['time_difference_in_minutes'], bins=bins,
+                          labels=labels, right=False)
+    # grouped_df = df.groupby('time_difference_in_minutes').count()
+    grouped_df = df_ima.groupby('binned').count()
+    print("grouped_df: ", grouped_df["datetime"])
+
+    df_ima = df_ima[df_ima["time_difference"] < pd.Timedelta(seconds=1000)]
+
+
+    #print(df_ima)
+    #print(df_ima.sort_values(by='time_difference_in_minutes').iloc[-20:])
+    #df_ima.to_csv(TOOLS_OUTPUT_DIR / "temp_ima_sampling_check.txt",
+    #          sep='\t', index=False)  # Save to file
+    plt.figure()
+    plt.hist(df_ima['time_difference_in_minutes'])
+    plt.show()
 
 if __name__ == "__main__":
     # calculate_avg_sw_moments()
+    #find_mex_aspera_sampling_interval()
+    # find_sampling_frequency_in_time_interval()
     find_mex_aspera_sampling_interval()
