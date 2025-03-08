@@ -57,12 +57,13 @@ from read_from_database import (
     read_mex_safe_modes,
     read_rad_onsets,
     read_sep_database_events,
+    read_forbush_decreases_database,
 )
 from scipy.signal import savgol_filter
 # from scipy.stats import percentileofscore
 from validate_cme_events import read_cme_validation_results
 from validate_forbush_decreases import read_msl_rad_fd_validation_result
-from validate_sep_events import read_sep_validation_results
+from validate_database_events import read_sep_validation_results
 from validate_maven_events import read_validation_lee_2017
 from read_mex_aspera_data import (
     read_mex_ima_bg_counts, 
@@ -968,6 +969,20 @@ def plot_cumulative_detrended_rates():
     plt.show()
 
 
+def create_fd_database_plots():
+    """
+    Plot SWEET for all Forbush decreases
+    in the database"""
+    df = read_forbush_decreases_database()
+    date_list = df["onset_time"].tolist()
+    print("Creating plots of all Fd database event dates")
+    
+    #date_list = df_dates["date"].tolist()
+    event_type_list = df["instrument"].tolist()
+    folder_name = "fd_database_dates"
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name, event_type_list)
+
+
 def create_sep_database_plots():
     """Plot SWEET for all SEP dates 
     in the database
@@ -1275,6 +1290,125 @@ def plot_stormy_days_bin():
     ax1.legend(loc="upper left")
     ax2.legend(loc="upper right")
     plt.title("Sunspot number and number of FDs in 6 month bins")
+    plt.show()
+
+
+def plot_sweet_events_binned_one_plot():
+    def group_by_6_months(date):
+        return pd.Timestamp(date.year, ((date.month - 1) // 6) * 6 + 1, 1)
+    stormy_days_df = read_stormy_sweet_dates()
+    print(f"Number of SWEET stormy days is {len(stormy_days_df)}")
+    event_df = read_sweet_event_dates()
+    sep_df = event_df[event_df["type"] == "SEP"]
+ 
+    forbush_df = event_df[event_df["type"] == "Fd"]
+    print(f'Number of SWEET SEP events: {len(sep_df)}')
+    print(f'Number of SWEET Forbush decreases: {len(forbush_df)}')
+
+    start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
+
+    df_sun = process_sidc_ssn()
+    index_exact = np.where(df_sun["date"] == start_date)[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    sunspots_smoothed = savgol_filter(
+        df_sun["daily_sunspotnumber"], SUNSPOTS_SAVGOL, 3
+    )
+
+    event_df["6_month_group"] = event_df["date"].apply(group_by_6_months)
+    sep_df["6_month_group"] = sep_df["date"].apply(group_by_6_months)
+    forbush_df["6_month_group"] = forbush_df["date"].apply(group_by_6_months)
+
+    grouped_df = event_df.groupby("6_month_group").size().reset_index()
+    grouped_sep = sep_df.groupby("6_month_group").size().reset_index()
+    grouped_fd = forbush_df.groupby("6_month_group").size().reset_index()
+
+    grouped_df.columns = ["datebin", "counts"]
+    grouped_sep.columns = ["datebin", "counts"]
+    grouped_fd.columns = ["datebin", "counts"]
+    grouped_df["datebin"] = grouped_df["datebin"] + pd.DateOffset(months=3)
+    grouped_sep["datebin"] = grouped_sep["datebin"] + pd.DateOffset(months=3)
+    grouped_fd["datebin"] = grouped_fd["datebin"] + pd.DateOffset(months=3)
+    events_total = grouped_df["counts"].sum()
+    print("Number of events: ", events_total)
+
+
+    fig, ax1 = plt.subplots(figsize=(10, 7.5))
+    all_events_color = DETRENDED_EDAC_COLOR  # "#8ACE00"
+    sepcolor = "#EE3377"  # "#FF6663"
+    fdcolor = "#984ea3"
+    suncolor = "#9B612F"  # "#a65628"
+    ax2 = ax1.twinx()
+    ax1.plot(
+        df_sun["date"],
+        sunspots_smoothed,
+        linewidth=2,
+        color=suncolor,
+        label="Smoothed sunspots",
+    )
+    ax2.plot(
+        grouped_df["datebin"],
+        grouped_df["counts"],
+        marker="o",
+        color=all_events_color,
+        label="Total number of events",
+    )
+    ax2.plot(
+        grouped_sep["datebin"][:-1],
+        grouped_sep["counts"][:-1],
+        marker="o",
+        color=sepcolor,
+        label="Number of SWEET SEP events",
+        linewidth=1,
+        alpha=1,
+    )
+
+    ax2.plot(
+        grouped_fd["datebin"],
+        grouped_fd["counts"],
+        marker="o",
+        color=fdcolor,
+        label="Number of SWEET FDs",
+        linewidth=1,
+        alpha=1,
+    )
+
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax2.minorticks_on()
+    ax1.minorticks_on()
+    ax2.xaxis.set_major_locator(YearLocator(4))
+    ax2.xaxis.set_minor_locator(YearLocator(1))
+    ax2.tick_params(which='minor', length=6)
+    ax1.tick_params(which='minor', length=6)
+
+    ax2.set_ylim([0, grouped_df["counts"].max()+8])
+    ax1.set_ylim([0, max(sunspots_smoothed + 10)])
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("Number of SWEET events", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Sunspot number", fontsize=FONTSIZE_AXES_LABELS,
+        color=suncolor)
+    ax2.tick_params(axis="y") #labelcolor=all_events_color)
+    ax1.tick_params(axis="y", labelcolor=suncolor)
+    ax2.yaxis.set_minor_locator(MultipleLocator(2))
+    ax2.yaxis.set_major_locator(MultipleLocator(4))
+
+    ax1.yaxis.set_minor_locator(MultipleLocator(10))
+    ax1.yaxis.set_major_locator(MultipleLocator(20))
+    ax2.legend(loc="upper left", fontsize=FONTSIZE_LEGENDS)
+    ax1.legend(loc="upper right", fontsize=FONTSIZE_LEGENDS,
+               bbox_to_anchor=(0.9, 1))
+
+    ax1.yaxis.tick_right()
+    ax1.yaxis.set_label_position("right")
+
+    ax2.yaxis.tick_left()
+    ax2.yaxis.set_label_position("left")
+
+    ax2.grid()
+    plt.title("Sunspot number and number of SWEET events in 6 month bins",
+              fontsize=FONTSIZE_TITLE,
+              pad=10)
     plt.show()
 
 
@@ -3274,6 +3408,7 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
     plt.gca().grid(False)
     plt.show()
 
+
 def plot_stack_maven_sep_ion_data(filename):
     df = read_maven_sep_flux_data(filename)
     df_flux = df.iloc[:,3:31]
@@ -3293,6 +3428,8 @@ def plot_stack_maven_sep_ion_data(filename):
     plt.tight_layout(rect=[0, 0, 1, 1]) 
 
     plt.show()
+
+
 
 def plot_one_channel_maven_sep_ion_data(filename):
     df = read_maven_sep_flux_data(filename)
@@ -4328,7 +4465,10 @@ if __name__ == "__main__":
     #filename = 'maven_f_flux_hr_sept_2017'
 
     #plot_maven_sep_ion_data_heatmap(filename)
-    plot_maven_sep_fluxes_data_heatmap(filename)
+    # plot_maven_sep_fluxes_data_heatmap(filename)
+    # create_fd_database_plots()
+    #create_sep_database_plots()
+    
     #plot_stack_maven_sep_ion_data(filename)
     #test_maven_sep_ion_heatmap(filename)
     # plot_one_channel_maven_sep_ion_data(filename) 
@@ -4378,3 +4518,5 @@ if __name__ == "__main__":
     #show_timerange_counter_countrate(start_date, end_date)
     
     filename = 'euhforia_Mars.dsv'
+    # plot_sweet_events_binned()
+    plot_sweet_events_binned_one_plot()
