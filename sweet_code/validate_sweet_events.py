@@ -119,7 +119,7 @@ def cross_check_sweet_sep_events():
         index=False,
     )  # Save selected EDAc rate to file
     print(f'{len(dates_matched)} out of {len(sweet_df)}')
-    print("Dates matched: ", dates_matched)
+    #print("Dates matched: ", dates_matched)
     df_matches_only = df[df["matched_date"].notna()]
 
 
@@ -213,7 +213,7 @@ def cross_check_sweet_fds():
     print(f'{len(dates_matched)} out of {len(sweet_df)}')
     print("Dates matched: ", dates_matched)
 
-def cross_check_sweet():
+def cross_check_sweet_old():
     """
     Finds the SWEET event dates, and compares the
     dates found in the database with them.
@@ -347,7 +347,41 @@ def cross_check_sweet():
         print(row_string)
 
 
+
+
+def create_validation_table():
+    sep_df = pd.read_csv(SWEET_VALIDATION_DIR / "sweet_sep_validation.txt",
+                     skiprows=0, sep="\t",
+                     parse_dates=["sweet_date"])
+    sep_df = sep_df.fillna("")
+    #print(sep_df)
+
+    fd_df = pd.read_csv(SWEET_VALIDATION_DIR / "sweet_fd_validation.txt",
+                     skiprows=0, sep="\t",
+                     parse_dates=["sweet_date"])
+    
+    fd_df = fd_df.fillna("")
+
+
+    combined_df = pd.concat([sep_df, fd_df], ignore_index=True)
+
+    combined_df = combined_df.sort_values(by="sweet_date")
+    print(combined_df)
+
+
+    for index, row in combined_df.iterrows():
+            
+            row_string = (
+                    f"{row['sweet_date'].date()} & "
+                    f"{row['sweet_type']} & "
+                    f"{row['instrument']} & "
+                    f"{row['matched_date']} & "
+                    f"{row['instrument_type'] } \\\\"
+                )
+            print(row_string)
+
 if __name__ == "__main__":
     #cross_check_sweet()
+    create_validation_table()
     # cross_check_sweet_sep_events()
-    cross_check_sweet_fds()
+    #cross_check_sweet_fds()

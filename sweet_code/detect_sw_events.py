@@ -215,6 +215,7 @@ def read_sweet_sep_events():
     """
     df = pd.read_csv(SWEET_EVENTS_DIR / sep_events_filename,
                      skiprows=0, sep="\t", parse_dates=['start_date'])
+    df['type'] = 'SEP'
     return df
 
 def read_sweet_sep_events_old():
@@ -393,7 +394,13 @@ if __name__ == "__main__":
     if not os.path.exists(SWEET_EVENTS_DIR):
         os.makedirs(SWEET_EVENTS_DIR)
     #detect_sweet_events()
-    create_stormy_days_list()
+    #create_stormy_days_list()
+    #df = read_sweet_event_dates()
+    create_sw_event_list()
+    #start_date = pd.to_datetime('2012-08-12 12:00:00')
+    #end_date = pd.to_datetime('2016-12-31 12:00:00')
+    #df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
+    #print(df['type'].value_counts())
     # df = read_sweet_forbush_decreases()
     # print(df)
     # find_sweet_sep()
