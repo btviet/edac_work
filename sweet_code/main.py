@@ -12,7 +12,7 @@ from plot_functions import (
     plot_sweet_events_binned,
 )
 from processing_edac import process_raw_edac
-from validate_sep_events import validate_sep_onsets
+from edac_work.sweet_code.validate_database_events import validate_sep_onsets
 from validate_sweet_events import cross_check_sweet
 from detect_sw_events import detect_sweet_events
 
