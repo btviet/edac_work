@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from parameters import PROCESSED_DATA_DIR, RAW_DATA_DIR
-
+from datetime import datetime
 load_dotenv()
 
 
@@ -211,8 +211,25 @@ def process_raw_edac():
     create_resampled_edac()
 
 
+
+
 if __name__ == "__main__":
-    create_zero_set_correct()
+    
+    df = read_resampled_df()
+    start_date = datetime.strptime("2017-07-01", "%Y-%m-%d")
+    end_date = datetime.strptime("2017-10-01", "%Y-%m-%d")
+    print(df)
+    df_shortened = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
+    print(df_shortened)
+    
+    df_shortened.to_csv(
+        "zeroset.csv",
+        sep="\t",
+        index=False,
+    )  # Save selected raw EDAC to file
+
+    #
+    # create_zero_set_correct()
     # calculate_rolling_window_rate()
     # df = read_rawedac()
     # print(df)
