@@ -214,47 +214,70 @@ def plot_20092010_ssr():
 
 
 def create_list_of_apses_times():
-
-    # 2016-2017
-    filename = 'SSR_SBEDBE_Data01312017.csv'
-    df = pd.read_csv(cassini_data_dir + filename)
-    column_headers = ['decimal', 'hex_time', 
-                      'SCET', 'SSR-A-SBE', 'SSR-A-DBE', 'SSR-B-SBE', 'SSR-B-DBE', 'apses']
-    df.columns = column_headers
-
     def increment_doy(match):
         year = match.group(1)
         doy = int(match.group(2)) + 1
         return f"{year}-{doy:03d}T"
-
+    # 2016-2017
+    filename = 'SSR_SBEDBE_Data01312017.csv' # should be shifted
+    df = pd.read_csv(cassini_data_dir + filename)
+    column_headers = ['decimal', 'hex_time', 
+                      'SCET', 'SSR-A-SBE', 'SSR-A-DBE', 'SSR-B-SBE', 'SSR-B-DBE', 'apses']
+    df.columns = column_headers
     df['SCET_shifted'] = df['SCET'].str.replace(r'(\d{4})-(\d{3})T', increment_doy, regex=True)
     df['SCET_UTC'] = pd.to_datetime(df['SCET_shifted'], format='%Y-%jT%H')
     data_2017 = df[(df['apses'] =='PERIAPSIS') | (df['apses'] == 'APOAPSIS')][['SCET_UTC', 'apses']]
-    #combined_df = pd.concat([periapsis_dates, apoapsis_dates], axis=0)
+   
     
 
-    filename = 'SSR_SBEDBE_Data_EOM.csv'
+    filename = 'SSR_SBEDBE_Data_EOM.csv' # should be shifted
     column_headers = ['decimal', 'hex_time', 
                       'SCET', 'SSR-A-SBE', 'SSR-A-DBE', 'SSR-B-SBE', 'SSR-B-DBE', 'apses']
     df = pd.read_csv(cassini_data_dir + filename)
     df = df.iloc[:, :8]
     df.columns=column_headers
     df['SCET_shifted'] = df['SCET'].str.replace(r'(\d{4})-(\d{3})T', increment_doy, regex=True)
-
     df['SCET_UTC'] = pd.to_datetime(df['SCET_shifted'], format='%Y-%jT%H')
     data_eom = df[(df['apses'] =='PERIAPSIS') | (df['apses'] == 'APOAPSIS')][['SCET_UTC', 'apses']]
-    #print(data_eom)
 
-    filename = '20042008_SSR_withLatRadius.csv'
+    filename = '20042008_SSR_withLatRadius.csv' # do not shift
     df = pd.read_csv(cassini_data_dir + filename)
     df = df.iloc[:, :8]
+    df.columns=column_headers
+    df['SCET_UTC'] = pd.to_datetime(df['SCET'], format='%Y-%jT%H')
+    data_2004 = df[(df['apses'] =='PERIAPSIS') | (df['apses'] == 'APOAPSIS')][['SCET_UTC', 'apses']]
+
+    filename = '20092010_SSR.csv' # should be shifted
+    df = pd.read_csv(cassini_data_dir + filename)
+    df = df.iloc[:, :8]
+    df.columns=column_headers
     df['SCET_shifted'] = df['SCET'].str.replace(r'(\d{4})-(\d{3})T', increment_doy, regex=True)
-
     df['SCET_UTC'] = pd.to_datetime(df['SCET_shifted'], format='%Y-%jT%H')
-    data_eom = df[(df['apses'] =='PERIAPSIS') | (df['apses'] == 'APOAPSIS')][['SCET_UTC', 'apses']]
-    print(df)
+    data_2009 = df[(df['apses'] =='PERIAPSIS') | (df['apses'] == 'APOAPSIS')][['SCET_UTC', 'apses']]
 
 
+    filename = '20112016_SSR_withlatRadius.csv' # should be shifted
+    df = pd.read_csv(cassini_data_dir + filename)
+    df = df.iloc[:, :8]
+    df.columns=column_headers
+    df['SCET_shifted'] = df['SCET'].str.replace(r'(\d{4})-(\d{3})T', increment_doy, regex=True)
+    df['SCET_UTC'] = pd.to_datetime(df['SCET_shifted'], format='%Y-%jT%H')
+    data_2011 = df[(df['apses'] =='PERIAPSIS') | (df['apses'] == 'APOAPSIS')][['SCET_UTC', 'apses']]
+    combined_df = pd.concat([data_2004, data_2009], axis=0)
+    combined_df = pd.concat([combined_df, data_2011], axis=0)
+    combined_df = pd.concat([combined_df, data_2017], axis=0)
+    combined_df = pd.concat([combined_df, data_eom], axis=0)
+    #print(len(data_2004), len(data_2009), len(data_2011), len(data_2017), len(data_eom))
+    print(combined_df)
+    combined_df.sort_values(by='SCET_UTC', inplace=True)
+    combined_df.drop_duplicates(inplace=True)
+    combined_df.reset_index(inplace=True)
+    print(combined_df)
+    # 'SSR_SBEDBE_Data01312017.csv
+    # 'SSR_SBEDBE_Data_EOM.csv'
+    # '20042008_SSR_withLatRadius.csv'
+    # '20092010_SSR.csv'
+    # '20112016_SSR_withlatRadius
 def plot_together():
     df_eom = read_ssr_sbedbe_data('SSR_SBEDBE_Data_EOM.csv')
     df_ssr_data = read_ssr_sbedbe_data01312017()
