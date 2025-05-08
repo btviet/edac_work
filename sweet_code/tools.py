@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 from detect_sw_events import read_sweet_sep_dates, read_sweet_event_dates
 from detrend_edac import read_detrended_rates
@@ -236,7 +237,6 @@ def calculate_avg_sw_moments():
     print(df['speed'].mean())
 
 
-
 def find_mex_aspera_sampling_interval():
     currentdate = datetime.strptime("2012-01-27", "%Y-%m-%d")
     #start_date = currentdate - pd.Timedelta(days=2)
@@ -279,8 +279,30 @@ def find_mex_aspera_sampling_interval():
     plt.hist(df_ima['time_difference_in_minutes'])
     plt.show()
 
+def find_threshold_based_on_percentile():
+    df = read_detrended_rates()
+    data = df["detrended_rate"]
+    sorted = np.sort(data)
+    #cdf = np.arange(1, len(sorted) + 1) / len(sorted)
+    # print(cdf)
+    threshold = np.percentile(sorted, 95.4)
+    print(threshold)
+
+def find_unique_database_events():
+    print("ye")
 if __name__ == "__main__":
     # calculate_avg_sw_moments()
     #find_mex_aspera_sampling_interval()
     # find_sampling_frequency_in_time_interval()
-    find_mex_aspera_sampling_interval()
+    # find_mex_aspera_sampling_interval()
+    #find_threshold_based_on_percentile()
+
+    df = read_detrended_rates()
+    print(df)
+    print(df['gcr_component'].mean())
+    #startdate = datetime.strptime("2022-02-10", "%Y-%m-%d")
+    #enddate = datetime.strptime("2022-02-20", "%Y-%m-%d")
+    #print(df)
+    #sliced_df = df[(df["date"] > startdate) & (df["date"] < enddate)]
+    #print(sliced_df)
+    #print(sliced_df['detrended_rate'].max())

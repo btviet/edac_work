@@ -166,24 +166,27 @@ def create_fd_table():
     df = pd.read_csv(DATABASE_DIR / 'forbush_database.csv',
                      skiprows=0, sep=",",
                      parse_dates=["onset_time"], date_format='%d/%m/%Y')
-    df_cleaned = df[~df['source'].str.contains('Papaioannou')]
+    df= df.sort_values(by='onset_time')
+    print(df)
+    #df_cleaned = df[~df['source'].str.contains('Papaioannou')]
 
     # df['matched_date'] = df['matched_date'].astype(object).fillna('')
-    for index, row in df_cleaned.iterrows():
+    for index, row in df.iterrows():
+        
         row_string = (
                 f"{row['onset_time'].date()} & "
                 f"{row['instrument']} & "
                 f"{row['source']} \\\\"
             )
         print(row_string)
-    print(len(df_cleaned))
+    # print(len(df_cleaned))
 
 
 def create_sep_table():
     df = pd.read_csv(DATABASE_DIR / 'sep_database.csv',
                      skiprows=0, sep=",",
                      parse_dates=["onset_time"], date_format='%d/%m/%Y')
-    print(df)
+    df = df.sort_values(by='onset_time')
     print(len(df))
     for index, row in df.iterrows():
         row_string = (
@@ -227,8 +230,9 @@ if __name__ == "__main__":
     # create_sep_table()
     #df = read_sep_events_maven()
     #print(df)
-    df =read_both_sep_fd_database_events()
-    print(df)
+    #df =read_both_sep_fd_database_events()
+    #print(df)
+    #create_sep_table()
     #df = read_forbush_decreases_database()
     #print(df)
     #read_rad_onsets()
@@ -236,3 +240,4 @@ if __name__ == "__main__":
     #read_forbush_decreases_database()
     #df = read_sep_database_events() 
     #print(df)
+    create_fd_table()
