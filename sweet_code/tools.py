@@ -1,11 +1,22 @@
 import os
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
+<<<<<<< HEAD
 from detect_sw_events import read_sweet_sep_dates
 from parameters import TOOLS_OUTPUT_DIR
 from edac_work.sweet_code.process_edac.processing_edac import read_rawedac, read_zero_set_correct
 
+=======
+from detect_sw_events import read_sweet_sep_dates, read_sweet_event_dates
+from detrend_edac import read_detrended_rates
+from parameters import TOOLS_OUTPUT_DIR, UPPER_THRESHOLD
+from processing_edac import read_rawedac, read_zero_set_correct
+import matplotlib.pyplot as plt
+from read_from_database import read_sep_database_events
+from read_mex_aspera_data import read_aspera_sw_moments, read_mex_ima_bg_counts
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 
 def find_missing_dates():
     df = read_rawedac()
@@ -59,6 +70,31 @@ def find_time_interval_in_dataset():
     print(sliced_df)
 
 
+def find_sampling_frequency_in_time_interval():
+    df = read_rawedac()
+    currentdate = datetime.strptime("2018-04-16", "%Y-%m-%d")
+    start_date = currentdate - pd.Timedelta(days=7)
+    end_date = currentdate + pd.Timedelta(days=7)
+
+    #start_date = pd.to_datetime('2005-05-20 12:00:00')
+    #end_date = pd.to_datetime('2005-05-30 12:00:00')
+    df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
+
+    df['time_difference'] = df['datetime'].diff()
+    df['time_difference_in_minutes'] = \
+        df['time_difference'].dt.total_seconds() / 60
+    
+    print(df.sort_values(by="time_difference_in_minutes").iloc[-20:])
+
+    print("Max time difference: ", df['time_difference_in_minutes'].max())
+
+    if not os.path.exists(TOOLS_OUTPUT_DIR):
+        os.makedirs(TOOLS_OUTPUT_DIR)
+    df.to_csv(TOOLS_OUTPUT_DIR / f'sampling_frequency_{start_date.date()}_{end_date.date()}.txt',
+              sep="\t",
+              index=False)
+
+
 def find_sampling_frequency():
     df = read_rawedac()
     print(df)
@@ -80,9 +116,9 @@ def find_sampling_frequency():
     df = df.sort_values(by="time_difference_in_minutes")
     grouped_df = df.groupby('time_difference_in_minutes').count()
 
-    bins = [0, 0.5, 1, 5, 10, 60, 24*60]  # Define the interval edges
-    bins = [0, 0.1, 0.5, 1, 5, 10, 60, 24*60]  # Define the interval edges
-    # Label for each interval
+    bins = [0, 0.5, 1, 5, 10, 60, 24*60]  
+    bins = [0, 0.1, 0.5, 1, 5, 10, 60, 24*60]  
+
     labels = ['0-0.1', '0.1-0.5', '0.5-1', '1-5', '5-10', '10-60', '60-1440']
 
     df['binned'] = pd.cut(df['time_difference_in_minutes'], bins=bins,
@@ -97,14 +133,14 @@ def find_sampling_frequency():
               sep="\t",
               index=False)
 
-    # plt.figure()
-    # plt.plot(df['datetime'], df['time_difference_in_minutes'])
-    # plt.show()
+    plt.figure()
+    plt.plot(df['datetime'], df['time_difference_in_minutes'])
+    plt.show()
 
-    # plt.figure()
-    # plt.hist(df['time_difference_in_minutes'], bins=100)
-    # plt.xlabel('Time difference in minutes')
-    # plt.show()
+    plt.figure()
+    plt.hist(df['time_difference_in_minutes'], bins=100)
+    plt.xlabel('Time difference in minutes')
+    plt.show()
 
 
 def investigate_stormy_days():
@@ -133,8 +169,11 @@ def edac_increments():
     print(df)
 
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 def read_detrended_count_rate_slice():
     df = read_detrended_rates()
     df = df[df["detrended_rate"]>= UPPER_THRESHOLD].sort_values(by="detrended_rate")
@@ -263,6 +302,7 @@ def find_threshold_based_on_percentile():
 
 def find_unique_database_events():
     print("ye")
+<<<<<<< HEAD
 
 
 def find_diff_between_edac_files():
@@ -281,13 +321,21 @@ def find_diff_between_edac_files():
 
     
 >>>>>>> Stashed changes
+=======
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 if __name__ == "__main__":
-    # edac_increments()
-    # find_time_interval_in_dataset()
-    # find_sampling_frequency()
-    # find_missing_dates()
-    # read_missing_dates()
-    find_sampling_frequency()
-    # find_sampling_frequency()
-    # find_last_reading_of_each_day()
-    # check_if_date_in_dataset()
+    # calculate_avg_sw_moments()
+    #find_mex_aspera_sampling_interval()
+    # find_sampling_frequency_in_time_interval()
+    # find_mex_aspera_sampling_interval()
+    #find_threshold_based_on_percentile()
+
+    df = read_detrended_rates()
+    print(df)
+    print(df['gcr_component'].mean())
+    #startdate = datetime.strptime("2022-02-10", "%Y-%m-%d")
+    #enddate = datetime.strptime("2022-02-20", "%Y-%m-%d")
+    #print(df)
+    #sliced_df = df[(df["date"] > startdate) & (df["date"] < enddate)]
+    #print(sliced_df)
+    #print(sliced_df['detrended_rate'].max())
