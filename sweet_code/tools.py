@@ -3,21 +3,27 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-<<<<<<< HEAD
-from detect_sw_events import read_sweet_sep_dates
 from parameters import TOOLS_OUTPUT_DIR
-from edac_work.sweet_code.process_edac.processing_edac import read_rawedac, read_zero_set_correct
+from sweet_code.edac.processing_edac import read_rawedac
 
-=======
-from detect_sw_events import read_sweet_sep_dates, read_sweet_event_dates
-from detrend_edac import read_detrended_rates
-from parameters import TOOLS_OUTPUT_DIR, UPPER_THRESHOLD
-from processing_edac import read_rawedac, read_zero_set_correct
-import matplotlib.pyplot as plt
-from read_from_database import read_sep_database_events
-from read_mex_aspera_data import read_aspera_sw_moments, read_mex_ima_bg_counts
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 
+def find_multiple_edac_increments():
+    """
+    Find invalid EDAC increases.
+    This is when there is an increment >= 3
+    between two consecutive samples.
+    Saves the dates where this happens to a file.
+    """
+    df = read_rawedac()
+    df['edac_diff'] = df['edac'].diff()
+    filtered_df = df[df['edac_diff']>=3]
+    print(filtered_df)
+    not_valid_dates = filtered_df["datetime"].dt.date
+    print(not_valid_dates)
+    not_valid_dates.to_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+              sep='\t', index=False)  # Save to file
+    
+"""
 def find_missing_dates():
     df = read_rawedac()
     print(len(df))
@@ -37,18 +43,16 @@ def find_missing_dates():
         os.makedirs(TOOLS_OUTPUT_DIR)
     df.to_csv(TOOLS_OUTPUT_DIR / file_name,
               sep='\t', index=False)  # Save to file
-
-
+"""
+"""
 def read_missing_dates():
     df = pd.read_csv(TOOLS_OUTPUT_DIR / "missing_edac_dates.txt",
                      skiprows=0, sep="\t", parse_dates=['date'])
     return df
-
-
+"""
+"""
 def check_if_date_in_dataset():
-    """
 
-    """
     date = datetime.strptime("2022-05-19", "%Y-%m-%d").date()
     df = read_rawedac()
     # df = read_zero_set_correct()
@@ -57,18 +61,18 @@ def check_if_date_in_dataset():
     if date in dates_in_df:
         print(f'{date} in dataframe')
 
-
+"""
+"""
 def find_time_interval_in_dataset():
-    """
-    See how the raw EDAC, detrended EDAC count rate
-    looks like in a time interval
-    """
+        ##See how the raw EDAC, detrended EDAC count rate
+    ##looks like in a time interval
+    
     df = read_rawedac()
     startdate = datetime.strptime("2022-05-17", "%Y-%m-%d")
     enddate = datetime.strptime("2022-05-19", "%Y-%m-%d")
     sliced_df = df[(df["datetime"] > startdate) & (df["datetime"] < enddate)]
     print(sliced_df)
-
+"""
 
 def find_sampling_frequency_in_time_interval():
     df = read_rawedac()
@@ -168,12 +172,6 @@ def edac_increments():
     df.sort_values(by="edac_increment", inplace=True)
     print(df)
 
-
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 def read_detrended_count_rate_slice():
     df = read_detrended_rates()
     df = df[df["detrended_rate"]>= UPPER_THRESHOLD].sort_values(by="detrended_rate")
@@ -209,18 +207,6 @@ def find_detrended_count_rate_sep_database():
     print("file saved")
 
 
-def find_multiple_edac_increments():
-    """
-    Find invalid EDAC increases
-    """
-    df = read_rawedac()
-    df['edac_diff'] = df['edac'].diff()
-    filtered_df = df[df['edac_diff']>=3]
-    print(filtered_df)
-    not_valid_dates = filtered_df["datetime"].dt.date
-    print(not_valid_dates)
-    not_valid_dates.to_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
-              sep='\t', index=False)  # Save to file
 
 
 def read_detrended_df_in_timerange(): 
@@ -302,11 +288,6 @@ def find_threshold_based_on_percentile():
 
 def find_unique_database_events():
     print("ye")
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
-
 
 def find_diff_between_edac_files():
     df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
@@ -322,26 +303,6 @@ def find_diff_between_edac_files():
     print(df_test)
     # print(df_test.iloc[0:50])
 
-    
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
-=======
->>>>>>> Stashed changes
-if __name__ == "__main__":
-    # calculate_avg_sw_moments()
-    #find_mex_aspera_sampling_interval()
-    # find_sampling_frequency_in_time_interval()
-    # find_mex_aspera_sampling_interval()
-    #find_threshold_based_on_percentile()
 
-    df = read_detrended_rates()
-    print(df)
-    print(df['gcr_component'].mean())
-    #startdate = datetime.strptime("2022-02-10", "%Y-%m-%d")
-    #enddate = datetime.strptime("2022-02-20", "%Y-%m-%d")
-    #print(df)
-    #sliced_df = df[(df["date"] > startdate) & (df["date"] < enddate)]
-    #print(sliced_df)
-    #print(sliced_df['detrended_rate'].max())
+if __name__ == "__main__":
+    find_multiple_edac_increments()

@@ -1,7 +1,7 @@
 from typing import Final
 
 from dotenv import load_dotenv
-from file_paths import get_data_dir
+from sweet_code.file_paths import get_data_dir
 
 load_dotenv()
 
