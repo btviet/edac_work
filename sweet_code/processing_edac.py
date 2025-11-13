@@ -23,7 +23,7 @@ def read_rawedac():
     
     df = pd.read_csv(PROCESSED_DATA_DIR/ "patched_mex_edac_2025.txt",
                      skiprows=0, sep="\t", parse_dates=['datetime'])
-    
+    df['datetime'] = pd.to_datetime(df['datetime'], format='ISO8601')
     return df
 
 
@@ -38,6 +38,7 @@ def read_zero_set_correct():
     df = pd.read_csv(
         PROCESSED_DATA_DIR / 'zerosetcorrected_edac.txt',
         skiprows=0, sep="\t", parse_dates=['datetime'])
+    df['datetime'] = pd.to_datetime(df['datetime'], format='ISO8601')
     return df
 
 
@@ -258,11 +259,7 @@ def patch_edac_files():
 
     
 if __name__ == "__main__":
-    # patch_edac_files()
-    # process_raw_edac_2025()
-    df = read_rawedac()
-    df['datetime'] = pd.to_datetime(df['datetime'])
-    print(df.dtypes)
-    #print("hello world")
-    # process_raw_edac()
+    process_raw_edac()
     # create_resampled_edac()
+    # create_zero_set_correct()
+    # read_zero_set_correct()
