@@ -18,8 +18,12 @@ def read_rawedac():
         edac: sampled value
 
     """
-    df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac.txt",
-                     skiprows=0, sep="\t", parse_dates=['datetime'])
+    df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
+                      skiprows=0, sep="\t", parse_dates=['datetime'])
+    
+    #df = pd.read_csv(PROCESSED_DATA_DIR/ "mex_edac_2025.txt",
+    #                 skiprows=0, sep="\t", parse_dates=['datetime'])
+    
     return df
 
 
@@ -212,28 +216,42 @@ def process_raw_edac():
 
 
 
+def process_raw_edac_2025():
+    """
+    Process the 2025 edition of the MEX EDAC data file
+    
+    """
+    if not os.path.exists(PROCESSED_DATA_DIR):
+        os.makedirs(PROCESSED_DATA_DIR)
+    
+    df = pd.read_csv(RAW_DATA_DIR / "MEX_NDMW0D0G_2025_08_28_09_34_17.csv",
+                     skiprows=15, parse_dates=["# DATE TIME"])
+
+    df.rename(columns={'# DATE TIME': 'datetime', 'NDMW0D0G - AVG - 1 Non [MEX]': 'edac'},
+                        inplace=True)
+    df.to_csv(PROCESSED_DATA_DIR / 'mex_edac_2025.txt', sep='\t', index=False)
+
+
+
+def patch_edac_files():
+    """
+    Appending the 2025 EDAC file to the end of the 2024 one
+    
+    """
+
+    df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
+                      skiprows=0, sep="\t", parse_dates=['datetime'])
+    #df['datetime'] = df['datetime'].astype('datetime64[s]')
+
+    last_date = df["datetime"].iloc[-1] # last date of first dataframe
+    print(last_date)
+    df_2 = pd.read_csv(PROCESSED_DATA_DIR/ "mex_edac_2025.txt",
+                     skiprows=0, sep="\t", parse_dates=['datetime'])
+    
+    df_2 = df_2[df_2["datetime"]>last_date]
 
 if __name__ == "__main__":
-    
-    df = read_resampled_df()
-    start_date = datetime.strptime("2017-07-01", "%Y-%m-%d")
-    end_date = datetime.strptime("2017-10-01", "%Y-%m-%d")
-    print(df)
-    df_shortened = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-    print(df_shortened)
-    
-    df_shortened.to_csv(
-        "zeroset.csv",
-        sep="\t",
-        index=False,
-    )  # Save selected raw EDAC to file
-
-    #
-    # create_zero_set_correct()
-    # calculate_rolling_window_rate()
-    # df = read_rawedac()
-    # print(df)
-    # print(df['daily_rate'].value_counts())
-    #df = read_zero_set_correct()
-    #print(df)
-    
+    # patch_edac_files()
+    # process_raw_edac_2025()
+    # read_rawedac()
+    print("hello world")
