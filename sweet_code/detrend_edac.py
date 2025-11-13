@@ -7,7 +7,7 @@ from parameters import (
     PROCESSED_DATA_DIR,
     RATE_SAVGOL,
 )
-from processing_edac import read_resampled_df, read_rolling_rates
+from edac_work.sweet_code.process_edac.processing_edac import read_resampled_df, read_rolling_rates
 from scipy.signal import savgol_filter
 
 

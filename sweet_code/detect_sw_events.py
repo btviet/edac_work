@@ -8,7 +8,7 @@ from parameters import (
     SWEET_EVENTS_DIR,
     UPPER_THRESHOLD,
 )
-from processing_edac import read_resampled_df
+from edac_work.sweet_code.process_edac.processing_edac import read_resampled_df
 
 sep_dates_filename = 'sweet_sep_dates.txt'
 sep_events_filename = 'sep_events_sweet.txt'
