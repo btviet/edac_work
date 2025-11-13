@@ -815,6 +815,56 @@ def show_timerange(startdate, enddate):
     fig.suptitle("Example of a SWEET SEP event and FD", fontsize=24, y=1.001)
     plt.tight_layout()
     plt.show()
+    #plt.show()
+    plt.close()
+
+    fig, ax1 = plt.subplots(1, figsize=(8, 6))
+    ax1.plot(df["date"], df["detrended_rate"], marker="o",
+             label="Detrended count rate", color=DETRENDED_EDAC_COLOR)
+    ax1.axhline(
+        UPPER_THRESHOLD, label='Noise threshold',
+        linestyle='dashed',
+        color=THRESHOLD_COLOR)
+    
+    ax1.axvline(x=datetime.strptime("2006-02-19 12:00", "%Y-%m-%d %H:%M"),
+                linestyle='dashed',
+                color='black',
+                label='SEP event')
+    ax2 = ax1.twinx()
+    ax2.scatter(filtered_raw["datetime"], filtered_raw["edac"],
+                label="EDAC count", s=3, color=ZEROSET_COLOR)
+    
+    
+    ax1.set_xlabel("Date", fontsize=20),
+    ax1.set_ylabel("EDAC count rate [#/day]", fontsize=20, color=DETRENDED_EDAC_COLOR)
+    ax2.set_ylabel("EDAC count [#]", fontsize=20, color=ZEROSET_COLOR)
+    
+
+    ax1.set_xlim(datetime.strptime("2006-02-13", "%Y-%m-%d"), 
+                 datetime.strptime("2006-02-26", "%Y-%m-%d"))
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+
+    ax1.yaxis.set_major_locator(MultipleLocator(2))
+    ax1.yaxis.set_minor_locator(MultipleLocator(1))
+    ax2.yaxis.set_major_locator(MultipleLocator(4))
+    ax2.yaxis.set_minor_locator(MultipleLocator(2))
+    date_format = mdates.DateFormatter('%b %d')  # '%b' = abbreviated month name, '%d' = day of month
+    ax1.xaxis.set_major_formatter(date_format)
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles4, labels4 = ax2.get_legend_handles_labels()
+    handles = handles1 + handles4
+    labels = labels1 + labels4
+    ax1.legend(handles, labels, loc='upper left', fontsize=FONTSIZE_LEGENDS)
+
+    #ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right')
+    ax1.grid()
+    fig.suptitle("Example of a SWEET SEP event and FD", fontsize=24, y=1.001)
+    plt.tight_layout()
+    plt.show()
 
 def create_plots(file_path, date_list, folder_name, event_type_list):
     """
@@ -1755,6 +1805,7 @@ def plot_sweet_events_binned():
     
     plt.show()
     #plt.close()
+    #plt.close()
 ###########
     fig, ax1 = plt.subplots(figsize=(10, 7.5))
     ax1.plot(
@@ -2593,10 +2644,10 @@ def show_timerange_counter_countrate(startdate, enddate):
                 linestyle='dashed',
                 color='black')
 
-    ax2.axvline(x=datetime.strptime("2014-09-02 01:29:00", "%Y-%m-%d %H:%M:%S"),
-                linestyle='dashed',
-                color='black',
-                label='MSL/RAD onset time')
+    #ax2.axvline(x=datetime.strptime("2014-09-02 01:29:00", "%Y-%m-%d %H:%M:%S"),
+    #            linestyle='dashed',
+    #            color='black',
+    #            label='MSL/RAD onset time')
     
 >>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
     ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
@@ -3453,6 +3504,53 @@ def plot_msl_rad_sweet(start_date, end_date):
     df_rad = df_rad[(df_rad["datetime"] >= start_date) & (df_rad["datetime"] <= end_date)]
     df_sweet = read_detrended_rates()
     df_sweet = df_sweet[(df_sweet["date"] > start_date) & (df_sweet["date"] < end_date)]
+
+    fig, ax1 = plt.subplots(1, figsize=(10, 6))
+    ax1.plot(df_rad['datetime'], df_rad['B_dose'], label='RAD B dose rate', marker='o',
+             markersize=2, color=RAD_B_COLOR)
+    
+    ax2 = ax1.twinx()
+    ax2.scatter(df_raw["datetime"], df_raw["edac"],
+            label='MEX EDAC count',
+            color= ZEROSET_COLOR,# RAW_EDAC_COLOR,
+            marker='o',
+            s=5)
+    ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("EDAC counter [#]", fontsize=FONTSIZE_AXES_LABELS-2, color=ZEROSET_COLOR)
+    ax1.set_ylabel("Dose rate [mGy/day]", fontsize=FONTSIZE_AXES_LABELS-2, color=RAD_B_COLOR)
+    ax1.yaxis.set_major_locator(MultipleLocator(2))
+    ax1.yaxis.set_minor_locator(MultipleLocator(1))
+    ax2.yaxis.set_major_locator(MultipleLocator(5))
+    ax2.yaxis.set_minor_locator(MultipleLocator(1))
+
+    ax2.xaxis.set_minor_locator(mdates.DayLocator())
+    major_ticks_locations =  [pd.to_datetime('2024-05-20 00:00:00') + pd.Timedelta(days=2 * i) 
+                              for i in range(-1, 3)]  # One week away, up to five weeks
+    ax2.set_xticks(major_ticks_locations)
+
+    date_format = mdates.DateFormatter('%b %d')  # '%b' = abbreviated month name, '%d' = day of month
+    ax1.xaxis.set_major_formatter(date_format)
+
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles4, labels4 = ax2.get_legend_handles_labels()
+    handles = handles1 + handles4
+    labels = labels1 + labels4
+    ax1.legend(handles, labels, loc='upper left', fontsize=FONTSIZE_LEGENDS)
+    ax1.set_xlim(datetime.strptime("2024-05-18", "%Y-%m-%d"), 
+                 datetime.strptime("2024-05-24", "%Y-%m-%d"))
+    ax1.grid()
+
+    fig.suptitle("MSL/RAD and MEX EDAC during May 2024 event", fontsize=FONTSIZE_TITLE)
+    plt.tight_layout()
+    plt.show()
+
+    ##
     fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True,
                                         figsize=(10, 6))
     ax1.plot(df_rad['datetime'], df_rad['B_dose'], label='B dose rate', marker='o',
@@ -3760,13 +3858,13 @@ def plot_maven_sep_ion_data_heatmap(filename):
 
 def plot_maven_sep_fluxes_data_heatmap(filename):
     df = read_maven_sep_flux_data(filename)
-    current_date = datetime.strptime("2024-05-18", "%Y-%m-%d")
+    current_date = datetime.strptime("2014-12-19", "%Y-%m-%d")
     start_date = current_date - pd.Timedelta(days=5)
     end_date = current_date + pd.Timedelta(days=5)
     #start_date = datetime.strptime("2015-04-15", "%Y-%m-%d")
     #end_date = datetime.strptime("2023-07-17", "%Y-%m-%d")
-    df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
-    #df = df[df['datetime']>=start_date]
+    
+    #df = df[df['datetime']>=start_date]df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
     df_ion_flux = df.iloc[:,3:31]
     df_electron_flux = df.iloc[:,31:-2]
     df_datetime = df["datetime"]
@@ -3779,7 +3877,7 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
     df_ion = df_ion.iloc[:, ::-1]
     df_electron = df_electron.iloc[:, ::-1]
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 20), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
     heatmap_ion = sns.heatmap(df_ion.T, cmap='plasma', cbar=False, norm=LogNorm(vmin=0.1, vmax=1e4), ax=axes[0])
     sns.heatmap(df_electron.T, cmap='plasma', cbar=False, norm=LogNorm(vmin=0.1, vmax=1e4), ax=axes[1])
     
@@ -3793,7 +3891,7 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
 
     axes[0].set_ylabel('Ion energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
     axes[1].set_ylabel('Electron energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
-    ion_tick_indices = np.arange(0, len(df_ion.index), 24)
+    ion_tick_indices = np.arange(0, len(df_ion.index), 48)
     ion_tick_labels = df_ion.index[ion_tick_indices].date  # Extract corresponding dates
 
     axes[1].set_xticks(ion_tick_indices)
@@ -3832,15 +3930,18 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
     axes[1].tick_params(which='minor', axis='x', length=6) 
     axes[1].tick_params(which='major', axis='x', length=10) 
 
-    fig.suptitle("MAVEN/SEP hourly fluxes for attempt #5",
+    fig.suptitle("MAVEN/SEP hourly fluxes for attempt #8",
                   fontsize=FONTSIZE_TITLE, y=0.95)
     plt.gca().grid(False)
+
+    plt.savefig('aurora_attempt_8.png',
+                 dpi=300, transparent=False)
     plt.show()
 
 
 def plot_stack_maven_sep_ion_data(filename):
     df = read_maven_sep_flux_data(filename)
-    df_flux = df.iloc[:,3:31]
+    df_flux = df.iloc[:,3:30]
     df_datetime = df["datetime"]
     df = pd.concat([df_datetime, df_flux], axis=1)
     print(df_flux.columns)
@@ -3854,6 +3955,8 @@ def plot_stack_maven_sep_ion_data(filename):
     ax1.set_yscale('log')
     ax1.legend(loc='upper left', bbox_to_anchor=(1.1, 1), borderaxespad=0.)
     ax1.grid()
+    ax1.tick_params(axis="x", rotation=15)
+
     plt.tight_layout(rect=[0, 0, 1, 1]) 
 
     plt.show()
@@ -4102,16 +4205,16 @@ def plot_channels_heatmap_side_by_side(filename):
 
 def plot_one_channel_maven_sep_ion_data(filename):
     df = read_maven_sep_flux_data(filename)
-    current_date = datetime.strptime("2015-05-13", "%Y-%m-%d")
-    start_date = current_date - pd.Timedelta(days=7)
-    end_date = current_date + pd.Timedelta(days=7)
+    current_date = datetime.strptime("2014-12-19", "%Y-%m-%d")
+    start_date = current_date - pd.Timedelta(days=14)
+    end_date = current_date + pd.Timedelta(days=21)
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
 
     df_flux = df.iloc[:,3:31] #df.iloc[:,3:31]
     df_datetime = df["datetime"]
     df = pd.concat([df_datetime, df_flux], axis=1)
     #print(df_flux.columns)
-    channels = [1, 10, 15, 20, -3, -2, -1]
+    channels = [1, 10, 15, 20, -3, -2]
     fig, ax1 = plt.subplots(figsize=(10, 6))
     for elem in channels:
         ax1.plot(df["datetime"], df.iloc[:,elem], label=df.columns[elem])
@@ -4684,13 +4787,13 @@ def plot_ima_counts_and_sweet_v3(start_date, end_date):
                 marker='o',
                 s=5)
     
-    ax1.axvline(x=datetime.strptime("2011-06-04 07:10:00", "%Y-%m-%d %H:%M:%S"),
-                        linestyle='dashed',
-                        color='black',
-                        label='CME detection by STEREO-B')
-    ax2.axvline(x=datetime.strptime("2011-06-04 07:10:00", "%Y-%m-%d %H:%M:%S"),
-                        linestyle='dashed',
-                        color='black')
+    #ax1.axvline(x=datetime.strptime("2011-06-04 07:10:00", "%Y-%m-%d %H:%M:%S"),
+    #                    linestyle='dashed',
+    #                    color='black',
+    #                    label='CME detection by STEREO-B')
+    #ax2.axvline(x=datetime.strptime("2011-06-04 07:10:00", "%Y-%m-%d %H:%M:%S"),
+    #                    linestyle='dashed',
+    #                    color='black')
     #ax0.scatter(df_raw["datetime"], df_raw["edac"],
     #            label='Raw MEX EDAC',
     #            color=RAW_EDAC_COLOR,
@@ -4779,6 +4882,59 @@ def plot_ima_counts_and_sweet_v3(start_date, end_date):
         df_ima['time_difference'].dt.total_seconds() / 60
     df_ima.to_csv("temp_rate_diff_edac.txt")
     
+    fig, ax1 = plt.subplots(1,
+                                   figsize=(8, 6))
+    ax1.plot(df_ima["datetime"], df_ima["bg_counts"],
+             label="IMA background counts",
+             color=IMA_COLOR)
+    
+    ax4 = ax1.twinx()
+    ax4.scatter(df_raw["datetime"], df_raw["edac"],
+                label='MEX EDAC counter',
+                color= ZEROSET_COLOR,# RAW_EDAC_COLOR, #ZEROSET_COLOR 
+                marker='o',
+                s=5)
+    
+    ax1.set_yscale('log')
+
+    ax4.yaxis.tick_left()
+    ax4.yaxis.set_label_position("left")
+
+    ax1.yaxis.tick_right()
+    ax1.yaxis.set_label_position("right")
+    ax1.xaxis.set_major_locator(mdates.DayLocator())
+    date_format = mdates.DateFormatter('%b %d')  # '%b' = abbreviated month name, '%d' = day of month
+    ax1.xaxis.set_major_formatter(date_format)
+
+    #ax1.xaxis.set_minor_locator(mdates.DayLocator())
+
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax4.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax4.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax4.yaxis.set_major_locator(MultipleLocator(5))
+    ax4.yaxis.set_minor_locator(MultipleLocator(1))
+
+    ax1.set_ylabel("IMA bg. count", fontsize=FONTSIZE_AXES_LABELS,
+        color=IMA_COLOR)
+    ax4.set_ylabel("MEX EDAC count", fontsize=FONTSIZE_AXES_LABELS,
+        color=ZEROSET_COLOR)
+    ax1.grid()
+    ax1.tick_params(axis="x", rotation=10)
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles4, labels4 = ax4.get_legend_handles_labels()
+    handles = handles1 + handles4
+    labels = labels1 + labels4
+    ax1.legend(handles, labels, loc='upper left', fontsize=FONTSIZE_LEGENDS)
+    
+    # ax3.set_ylabel('EDAC standardized count rate', fontsize=12)
+
+    fig.suptitle("MEX EDAC and IMA bg. counts for Jan. 2012 event",
+                fontsize=FONTSIZE_TITLE,
+                 y=0.95)
+    
+    plt.show()
 
 def plot_euhforia_mars_dsv(filename):
     df = read_euhforia_mars_dsv_file(filename)
@@ -5394,11 +5550,32 @@ if __name__ == "__main__":
     # plot_one_channel_maven_sep_ion_data(filename) 
     # filename = 'maven_f_flux_hr_sept_2017'
 
+    startdate = datetime.strptime("2012-01-23", "%Y-%m-%d")
+    enddate =  datetime.strptime("2012-01-31", "%Y-%m-%d")
+
+
+    #plot_ima_counts_and_sweet_v3(startdate, enddate)
+
+    startdate = datetime.strptime("2006-02-13", "%Y-%m-%d")
+    enddate =  datetime.strptime("2006-02-26", "%Y-%m-%d")
+    #show_timerange(startdate, enddate)
+    
+    start_date = datetime.strptime("2024-05-16", "%Y-%m-%d")
+    end_date =  datetime.strptime("2024-05-26", "%Y-%m-%d")
+    #plot_msl_rad_sweet(start_date, end_date)
+    #plot_sweet_events_binned_one_plot()
+    
+    #plot_ima_counts_and_sweet(start_date, end_date)
+
+    #plot_raw_edac_scatter(start_date, end_date)
     #plot_maven_sep_ion_data_heatmap(filename)
-    filename = 'maven_f_flux_hr_aurora_attempt_5'
-    plot_maven_sep_fluxes_data_heatmap(filename)
+    filename = 'maven_f_flux_hr_dec_2014'
+    #plot_maven_sep_fluxes_data_heatmap(filename)
     # create_fd_database_plots()
     #create_sep_database_plots()
+    plot_one_channel_maven_sep_ion_data(filename)
+    ##plot_maven_sep_fluxes_data_heatmap(filename)
+    
     
     #plot_stack_maven_sep_ion_data(filename)
     #test_maven_sep_ion_heatmap(filename)
@@ -5409,7 +5586,7 @@ if __name__ == "__main__":
     start_date = currentdate - pd.Timedelta(days=7)
     end_date = currentdate + pd.Timedelta(days=7)
     #show_timerange_counter_countrate(start_date, end_date)
-    #plot_msl_rad_sweet(start_date, end_date)
+    # plot_msl_rad_sweet(start_date, end_date)
     # plot_msl_rad_sweet(start_date, end_date)
     
     #plot_ima_counts_and_sweet_v3(start_date, end_date)
@@ -5447,8 +5624,23 @@ if __name__ == "__main__":
     #show_timerange(start_date, end_date)
     # safe mode maven 2
 
-    start_date = datetime.strptime("2023-02-14", "%Y-%m-%d")
-    end_date = datetime.strptime("2023-02-28", "%Y-%m-%d")
+    startdate = datetime.strptime("2021-10-07", "%Y-%m-%d")
+    enddate = datetime.strptime("2021-11-18", "%Y-%m-%d")
+    current_date = datetime.strptime("2021-10-28", "%Y-%m-%d")
+    startdate = currentdate - pd.Timedelta(days=21)
+    enddate = currentdate + pd.Timedelta(days=21)
+    #ellen_bestilling(startdate, enddate)
+    
+
+
+    current_date = datetime.strptime("2021-07-17", "%Y-%m-%d")
+    startdate = current_date - pd.Timedelta(days=21)
+    enddate = current_date + pd.Timedelta(days=21)
+    #ellen_bestilling_2(startdate, enddate) 
+    currentdate = datetime.strptime("2021-09-17", "%Y-%m-%d")
+    startdate = currentdate - pd.Timedelta(days=21)
+    enddate = currentdate + pd.Timedelta(days=21)
+    #ellen_bestilling_3(startdate, enddate)
     #show_timerange_counter_countrate(start_date, end_date)
     
     filename = 'euhforia_Mars.dsv'
