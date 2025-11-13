@@ -3,6 +3,12 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+<<<<<<< HEAD
+from detect_sw_events import read_sweet_sep_dates
+from parameters import TOOLS_OUTPUT_DIR
+from edac_work.sweet_code.process_edac.processing_edac import read_rawedac, read_zero_set_correct
+
+=======
 from detect_sw_events import read_sweet_sep_dates, read_sweet_event_dates
 from detrend_edac import read_detrended_rates
 from parameters import TOOLS_OUTPUT_DIR, UPPER_THRESHOLD
@@ -10,6 +16,7 @@ from processing_edac import read_rawedac, read_zero_set_correct
 import matplotlib.pyplot as plt
 from read_from_database import read_sep_database_events
 from read_mex_aspera_data import read_aspera_sw_moments, read_mex_ima_bg_counts
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 
 def find_missing_dates():
     df = read_rawedac()
@@ -162,6 +169,11 @@ def edac_increments():
     print(df)
 
 
+<<<<<<< HEAD
+<<<<<<< Updated upstream
+=======
+=======
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 def read_detrended_count_rate_slice():
     df = read_detrended_rates()
     df = df[df["detrended_rate"]>= UPPER_THRESHOLD].sort_values(by="detrended_rate")
@@ -290,6 +302,27 @@ def find_threshold_based_on_percentile():
 
 def find_unique_database_events():
     print("ye")
+<<<<<<< HEAD
+
+
+def find_diff_between_edac_files():
+    df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
+                      skiprows=0, sep="\t", parse_dates=['datetime'])
+    df['datetime'] = df['datetime'].astype('datetime64[s]')
+    df_2 = pd.read_csv(PROCESSED_DATA_DIR/ "mex_edac_2025.txt",
+                     skiprows=0, sep="\t", parse_dates=['datetime'])
+    
+    df_test = pd.concat([df,df_2]).drop_duplicates(keep=False)
+
+    df_test = df_test[df_test["datetime"] >=datetime.strptime("2004-01-01", "%Y-%m-%d") ]
+    df_test = df_test.sort_values(by='datetime')
+    print(df_test)
+    # print(df_test.iloc[0:50])
+
+    
+>>>>>>> Stashed changes
+=======
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 if __name__ == "__main__":
     # calculate_avg_sw_moments()
     #find_mex_aspera_sampling_interval()

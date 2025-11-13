@@ -7,8 +7,13 @@ from parameters import (
     PROCESSED_DATA_DIR,
     RATE_SAVGOL,
 )
+<<<<<<< HEAD
+from edac_work.sweet_code.process_edac.processing_edac import read_resampled_df, read_rolling_rates
+from scipy.signal import savgol_filter
+=======
 from processing_edac import read_resampled_df
 #from scipy.signal import savgol_filter
+>>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 
 
 def savitzky_fit_gcr(rate_df):
