@@ -5,21 +5,25 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from parameters import PROCESSED_DATA_DIR, RAW_DATA_DIR
-
+from datetime import datetime
 load_dotenv()
 
 
 def read_rawedac():
     """
     Returns a Pandas DataFrame with the
-    patched MEX EDAC.
-    Columns:
+    patched MEX EDAC from 2025
+    Columns in df:
         datetime: datetime of the reading
         edac: sampled value
 
     """
-    df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac.txt",
+    # df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
+    #                  skiprows=0, sep="\t", parse_dates=['datetime'])
+    
+    df = pd.read_csv(PROCESSED_DATA_DIR/ "patched_mex_edac_2025.txt",
                      skiprows=0, sep="\t", parse_dates=['datetime'])
+    
     return df
 
 
@@ -27,7 +31,7 @@ def read_zero_set_correct():
     """
     Returns a Pandas Dataframe with
     the zeroset-corrected EDAC
-    Columns:
+    Columns in df:
         datetime: datetime of the reading
         edac: zeroset-corrected EDAC value
     """
@@ -93,6 +97,8 @@ def create_resampled_edac():
     start_time = time.time()
     print('---- Starting the resampling to a daily frequency process ----')
     zerosetcorrected_df = read_zero_set_correct()
+    print(zerosetcorrected_df)
+    print(zerosetcorrected_df.dtypes)
     zerosetcorrected_df = zerosetcorrected_df.set_index('datetime')
 
     last_df = zerosetcorrected_df.resample('D').last()
@@ -211,12 +217,52 @@ def process_raw_edac():
     create_resampled_edac()
 
 
-if __name__ == "__main__":
-    create_zero_set_correct()
-    # calculate_rolling_window_rate()
-    # df = read_rawedac()
-    # print(df)
-    # print(df['daily_rate'].value_counts())
-    #df = read_zero_set_correct()
-    #print(df)
+
+def preprocess_raw_edac_2025():
+    """
+    Process the 2025 edition of the MEX EDAC data file,
+    saves it to a file
     
+    """
+    if not os.path.exists(PROCESSED_DATA_DIR):
+        os.makedirs(PROCESSED_DATA_DIR)
+    
+    df = pd.read_csv(RAW_DATA_DIR / "MEX_NDMW0D0G_2025_08_28_09_34_17.csv",
+                     skiprows=15, parse_dates=["# DATE TIME"])
+
+    df.rename(columns={'# DATE TIME': 'datetime', 'NDMW0D0G - AVG - 1 Non [MEX]': 'edac'},
+                        inplace=True)
+    df.to_csv(PROCESSED_DATA_DIR / 'mex_edac_2025.txt', sep='\t', index=False)
+
+
+
+def patch_edac_files():
+    """
+    Appending the 2025 EDAC file to the end of the 2024 one.
+    Saves it a file
+    
+    """
+    df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
+                      skiprows=0, sep="\t", parse_dates=['datetime'])
+    last_date = df["datetime"].iloc[-1] # last date of first dataframe
+    df_2025 = pd.read_csv(PROCESSED_DATA_DIR/ "mex_edac_2025.txt",
+                     skiprows=0, sep="\t", parse_dates=['datetime'])
+    
+    df_2025 = df_2025[df_2025["datetime"] >last_date]
+
+    df_all = pd.concat([df, df_2025], axis=0)
+
+    df_all.to_csv(PROCESSED_DATA_DIR / 'patched_mex_edac_2025.txt', sep='\t', index=False)
+
+
+
+    
+if __name__ == "__main__":
+    # patch_edac_files()
+    # process_raw_edac_2025()
+    df = read_rawedac()
+    df['datetime'] = pd.to_datetime(df['datetime'])
+    print(df.dtypes)
+    #print("hello world")
+    # process_raw_edac()
+    # create_resampled_edac()

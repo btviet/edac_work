@@ -3404,9 +3404,12 @@ def plot_maven_sep_ion_data_heatmap(filename):
 
 def plot_maven_sep_fluxes_data_heatmap(filename):
     df = read_maven_sep_flux_data(filename)
-    start_date = datetime.strptime("2015-04-15", "%Y-%m-%d")
-    end_date = datetime.strptime("2023-07-17", "%Y-%m-%d")
-    #df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
+    current_date = datetime.strptime("2024-05-18", "%Y-%m-%d")
+    start_date = current_date - pd.Timedelta(days=5)
+    end_date = current_date + pd.Timedelta(days=5)
+    #start_date = datetime.strptime("2015-04-15", "%Y-%m-%d")
+    #end_date = datetime.strptime("2023-07-17", "%Y-%m-%d")
+    df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
     #df = df[df['datetime']>=start_date]
     df_ion_flux = df.iloc[:,3:31]
     df_electron_flux = df.iloc[:,31:-2]
@@ -3434,22 +3437,22 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
 
     axes[0].set_ylabel('Ion energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
     axes[1].set_ylabel('Electron energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
-    ion_tick_indices = np.arange(0, len(df_ion.index), 250)
+    ion_tick_indices = np.arange(0, len(df_ion.index), 24)
     ion_tick_labels = df_ion.index[ion_tick_indices].date  # Extract corresponding dates
 
     axes[1].set_xticks(ion_tick_indices)
     axes[1].set_xticklabels(ion_tick_labels, fontsize=FONTSIZE_AXES_TICKS, 
-                            rotation=5)  # Rotate for readability
+                            rotation=10)  # Rotate for readability
     #minor_ion_tick_indices = np.arange(0, len(df_ion.index), 50)
     #axes[1].set_xticks(minor_ion_tick_indices, minor=True)
     
     axes[0].set_xlabel('')  # Removes the label
     axes[1].set_xlabel('Date', fontsize=FONTSIZE_AXES_LABELS)
-    print(df_ion.columns)
-    #ion_lower_bounds = [float(col.split('-')[0]) for col in df_ion.columns]
+    # print(df_ion.columns)
+    # ion_lower_bounds = [float(col.split('-')[0]) for col in df_ion.columns]
     ion_upper_bounds = [float(col.split('-')[1].split()[0]) for col in df_ion.columns]
-    print("upper boundss")
-    print(ion_upper_bounds)
+    # print("upper boundss")
+    # print(ion_upper_bounds)
     ion_axis_ticks = ion_upper_bounds[::3]
     ion_tick_indices = [i for i, value in enumerate(ion_upper_bounds) if value in ion_axis_ticks]
     ion_tick_labels = [int(value) if value.is_integer() else value for value in ion_axis_ticks]  
@@ -3473,7 +3476,7 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
     axes[1].tick_params(which='minor', axis='x', length=6) 
     axes[1].tick_params(which='major', axis='x', length=10) 
 
-    fig.suptitle("MAVEN/SEP hourly fluxes during June 2023 event",
+    fig.suptitle("MAVEN/SEP hourly fluxes for attempt #5",
                   fontsize=FONTSIZE_TITLE, y=0.95)
     plt.gca().grid(False)
     plt.show()
@@ -5029,26 +5032,14 @@ def show_example_sweet_sep_fd():
 
 
 if __name__ == "__main__":
-    plot_solar_cycle()
-    # plot_rates_all()
-    # plot_cdf_and_histo_detrended_rates()
-    #plot_verified_events_rates_distributions()
-    # plot_raw_and_zerosetcorrected()
-    # plot_rates_only()
-    # plot_gcr_fit_ssn()
-    # plot_msl_rad_all()
-    # plot_ima_counts_all()
-    # create_stacked_solar_cycle_bins()
-    #test2()
-    #plot_lee_2017_dates() 
-    # plot_additional_sep_detection()
-    filename = 'maven_f_flux_hr_may_2015'
-    #filename = 'maven_f_flux_hr_july_2023'
-    #plot_one_channel_maven_sep_ion_data(filename) 
-    #filename = 'maven_f_flux_hr_sept_2017'
+    # filename = 'maven_f_flux_hr_may_2015'
+    # filename = 'maven_f_flux_hr_july_2023'
+    # plot_one_channel_maven_sep_ion_data(filename) 
+    # filename = 'maven_f_flux_hr_sept_2017'
 
     #plot_maven_sep_ion_data_heatmap(filename)
-    #plot_maven_sep_fluxes_data_heatmap(filename)
+    filename = 'maven_f_flux_hr_aurora_attempt_5'
+    plot_maven_sep_fluxes_data_heatmap(filename)
     # create_fd_database_plots()
     #create_sep_database_plots()
     
