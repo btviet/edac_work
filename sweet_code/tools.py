@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 from detect_sw_events import read_sweet_sep_dates
 from parameters import TOOLS_OUTPUT_DIR
-from processing_edac import read_rawedac, read_zero_set_correct
+from edac_work.sweet_code.process_edac.processing_edac import read_rawedac, read_zero_set_correct
 
 
 def find_missing_dates():
@@ -133,6 +133,154 @@ def edac_increments():
     print(df)
 
 
+<<<<<<< Updated upstream
+=======
+def read_detrended_count_rate_slice():
+    df = read_detrended_rates()
+    df = df[df["detrended_rate"]>= UPPER_THRESHOLD].sort_values(by="detrended_rate")
+    target_df = df[["date", "daily_rate", "detrended_rate"]].iloc[0:20]
+    target_df.to_csv(
+        TOOLS_OUTPUT_DIR /
+        f"{UPPER_THRESHOLD}.csv",
+        index=False)
+
+
+def find_detrended_count_rate_sep_database():
+    """
+    for each verified SEP event in the data base,
+    find the maximum EDAC count rate
+    """
+    df_database = read_sep_database_events()
+    date_list = df_database["onset_time"].tolist()
+    df = read_detrended_rates()
+    print(df)
+    max_list = []
+    for date in date_list:
+        print(date.date())
+        vicinity_df = df[
+            (df["date"].dt.date >= date.date() - pd.Timedelta(days=1)) &
+            (df["date"].dt.date <= date.date() + pd.Timedelta(days=1))]
+        
+        max_detrended_rate = vicinity_df['detrended_rate'].max()
+        max_list.append([date, max_detrended_rate])
+    max_list_df = pd.DataFrame(max_list)
+    max_list_df.columns = ["event_date", "max_detrended_count_rate"]
+    max_list_df.to_csv(TOOLS_OUTPUT_DIR / 'max_detrended_count_rate_for_each_sep_event', 
+                       sep='\t', index=False)
+    print("file saved")
+
+
+def find_multiple_edac_increments():
+    """
+    Find invalid EDAC increases
+    """
+    df = read_rawedac()
+    df['edac_diff'] = df['edac'].diff()
+    filtered_df = df[df['edac_diff']>=3]
+    print(filtered_df)
+    not_valid_dates = filtered_df["datetime"].dt.date
+    print(not_valid_dates)
+    not_valid_dates.to_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+              sep='\t', index=False)  # Save to file
+
+
+def read_detrended_df_in_timerange(): 
+    currentdate = datetime.strptime("2014-09-02", "%Y-%m-%d")
+    start_date = currentdate - pd.Timedelta(days=7)
+    end_date = currentdate + pd.Timedelta(days=3)
+
+    df = read_detrended_rates()
+    df = df[(df["date"] > start_date) & (df["date"] < end_date)]
+    sorted = df.sort_values(by='detrended_rate').iloc[-10:]
+    print(sorted)
+
+
+def find_durations_of_sweet_events():
+    df =read_sweet_event_dates()
+
+    df_sep = df[df["type"]=="SEP"]
+    df_fd = df[df["type"]=="Fd"]
+    print(df_sep["duration"].value_counts())
+    print(df_fd["duration"].value_counts())
+    #print(df)
+
+
+def calculate_avg_sw_moments():
+    df = read_aspera_sw_moments()
+    print(df['speed'].mean())
+
+
+def find_mex_aspera_sampling_interval():
+    currentdate = datetime.strptime("2012-01-27", "%Y-%m-%d")
+    #start_date = currentdate - pd.Timedelta(days=2)
+    #end_date = currentdate + pd.Timedelta(days=4)
+    #start_date = datetime.strptime("2023-02-14", "%Y-%m-%d")
+    #end_date = datetime.strptime("2023-02-28", "%Y-%m-%d")
+    df_ima = read_mex_ima_bg_counts()
+    print(df_ima)
+    #df_ima = df_ima[(df_ima["datetime"] >= start_date) & (df_ima["datetime"] <= end_date)]
+
+
+    df_ima['time_difference'] = df_ima['datetime'].diff()
+    df_ima['time_difference_in_minutes'] = \
+        df_ima['time_difference'].dt.total_seconds() / 60
+    
+    #df_ima = df_ima[(df_ima["time_difference"] < pd.Timedelta(minutes=4))
+    #                & (df_ima["time_difference"] > pd.Timedelta(minutes=2))]
+    #print("filtered: ", df_ima)
+    #grouped_df = df_ima.groupby('time_difference_in_minutes').count()
+
+    #bins = [0, 0.5, 1, 5, 10, 60, 24*60]  
+    bins = [0, 2.5, 3.25, 10, 60, 24*60, float('inf')]  
+
+    labels = ['0-2.5', '2.5-3.25', '3.25-10', '10-60', '60-1440', '1440+']
+
+    df_ima['binned'] = pd.cut(df_ima['time_difference_in_minutes'], bins=bins,
+                          labels=labels, right=False)
+    # grouped_df = df.groupby('time_difference_in_minutes').count()
+    grouped_df = df_ima.groupby('binned').count()
+    print("grouped_df: ", grouped_df["datetime"])
+
+    df_ima = df_ima[df_ima["time_difference"] < pd.Timedelta(seconds=1000)]
+
+
+    #print(df_ima)
+    #print(df_ima.sort_values(by='time_difference_in_minutes').iloc[-20:])
+    #df_ima.to_csv(TOOLS_OUTPUT_DIR / "temp_ima_sampling_check.txt",
+    #          sep='\t', index=False)  # Save to file
+    plt.figure()
+    plt.hist(df_ima['time_difference_in_minutes'])
+    plt.show()
+
+def find_threshold_based_on_percentile():
+    df = read_detrended_rates()
+    data = df["detrended_rate"]
+    sorted = np.sort(data)
+    #cdf = np.arange(1, len(sorted) + 1) / len(sorted)
+    # print(cdf)
+    threshold = np.percentile(sorted, 95.4)
+    print(threshold)
+
+def find_unique_database_events():
+    print("ye")
+
+
+def find_diff_between_edac_files():
+    df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
+                      skiprows=0, sep="\t", parse_dates=['datetime'])
+    df['datetime'] = df['datetime'].astype('datetime64[s]')
+    df_2 = pd.read_csv(PROCESSED_DATA_DIR/ "mex_edac_2025.txt",
+                     skiprows=0, sep="\t", parse_dates=['datetime'])
+    
+    df_test = pd.concat([df,df_2]).drop_duplicates(keep=False)
+
+    df_test = df_test[df_test["datetime"] >=datetime.strptime("2004-01-01", "%Y-%m-%d") ]
+    df_test = df_test.sort_values(by='datetime')
+    print(df_test)
+    # print(df_test.iloc[0:50])
+
+    
+>>>>>>> Stashed changes
 if __name__ == "__main__":
     # edac_increments()
     # find_time_interval_in_dataset()

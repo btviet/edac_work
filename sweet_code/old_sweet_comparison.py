@@ -5,7 +5,7 @@ from validate_cme_events import (
     generate_next_7_days,
     read_cme_events,
 )
-from validate_sep_events import generate_next_3_days, read_sep_database_events
+from validate_sep_events import generate_SEP_days, read_sep_database_events
 
 
 def read_spikes():
