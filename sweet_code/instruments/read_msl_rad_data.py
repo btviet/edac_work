@@ -1,6 +1,13 @@
-from parameters import MSL_RAD_DIR
+import sys
+import os
+
+parent_directory = os.path.abspath('../edac_work')
+sys.path.append(parent_directory)
+
+from sweet_code.parameters import MSL_RAD_DIR
 from datetime import datetime
 import pandas as pd
+
 
 def process_msl_rad_data():
     """
@@ -14,15 +21,26 @@ def process_msl_rad_data():
     df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
     df = df[['sol', 'datetime', 'B_dose', 'B_dose_err', 'E_dose', 'E_dose_err']]
     df.to_csv(MSL_RAD_DIR / 'msl_rad_doses.txt', sep='\t', index=False)
- 
+
+
+def process_msl_rad_data_2025():
+    header_list = ['sol', 'date', 'time',	'B_dose', 'E_dose']
+    df = pd.read_csv(MSL_RAD_DIR / 'DoseRate_2025.txt',
+                     delim_whitespace=True,
+                     names=header_list,
+                     skiprows=1)
+    df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'], format='ISO8601')    
+
+    df.to_csv(MSL_RAD_DIR / 'msl_rad_doses.txt', sep='\t', index=False)
+
+
 def read_msl_rad_doses():
     df = pd.read_csv(MSL_RAD_DIR / 'msl_rad_doses.txt',
                      sep = '\t',
                      parse_dates=['datetime'])
-    df = df[
-        df["datetime"] < datetime.strptime("2024-07-31", "%Y-%m-%d")
-    ]
+    #df = df[df["datetime"] < datetime.strptime("2024-07-31", "%Y-%m-%d")]
     return df
+
 
 
 def process_filtered_rad_e_doses():
@@ -43,6 +61,4 @@ def read_msl_rad_filtered_e_doses():
 
 if __name__ == "__main__":
     #df = read_msl_rad_doses()
-    #print(df)
-    df = read_msl_rad_filtered_e_doses()
-    print(df)
+    process_msl_rad_data_2025()
