@@ -1,3 +1,9 @@
+import sys
+import os
+
+parent_directory = os.path.abspath('../edac_work')
+sys.path.append(parent_directory)
+
 from typing import Final
 
 from dotenv import load_dotenv

@@ -38,6 +38,8 @@ def read_msl_rad_doses():
     df = pd.read_csv(MSL_RAD_DIR / 'msl_rad_doses.txt',
                      sep = '\t',
                      parse_dates=['datetime'])
+    df["B_dose"] = df["B_dose"]/1000
+    df["E_dose"] = df["E_dose"]/1000
     #df = df[df["datetime"] < datetime.strptime("2024-07-31", "%Y-%m-%d")]
     return df
 

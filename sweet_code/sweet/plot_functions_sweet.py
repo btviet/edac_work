@@ -21,7 +21,10 @@ from sweet_code.edac.processing_edac import (read_rawedac,
 from sweet_code.indices.process_ssn import process_sidc_ssn
 
 from sweet_code.sweet.detrend_edac import read_detrended_rates
+from sweet_code.sweet.detect_sw_events import read_sweet_event_dates
 from sweet_code.parameters import (LOCAL_DIR,
+                                   SWEET_EVENTS_DIR,
+                                   TOOLS_OUTPUT_DIR,
                                    SUNSPOTS_SAVGOL,
                                    UPPER_THRESHOLD,
                                    THRESHOLD_COLOR,
@@ -146,13 +149,14 @@ def plot_gcr_fit_ssn():
 def plot_detrended_with_threshold():
 
     df = read_detrended_rates()
+    print(df)
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.plot(df["date"], df["detrended_rate"],
              label='Detrended count rate',
              color=DETRENDED_EDAC_COLOR,  # BRAT_GREEN,
              linewidth=2)
     ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
-    ax1.set_ylabel("Detrended count rate [#/day]",
+    ax1.set_ylabel("Detrended EDAC count rate [#/day]",
                    fontsize=FONTSIZE_AXES_LABELS)
     ax1.axhline(
         UPPER_THRESHOLD,
@@ -174,6 +178,9 @@ def plot_detrended_with_threshold():
     ax1.tick_params(which='minor', length=6)
     ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax1.grid()
+    fig.suptitle('MEX EDAC count rates Jan 2004 - Aug 2025',
+                 fontsize=FONTSIZE_TITLE,
+                 y=0.95)
     plt.show()
 
 
@@ -728,6 +735,175 @@ def create_plots(file_path, date_list, folder_name, event_type_list):
         count += 1
         
 
+def plot_invalid_edac_increases():
+    """
+    Make sure to remove days from the list that
+    actual have valid increases in addition to the
+    invalid ones.
+    """
+    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+                                parse_dates=["datetime"])
+
+    date_list = invalid_dates["datetime"].tolist()
+    event_type_list = [""]*len(date_list)
+    folder_name = "invalid_edac_increases"
+
+    create_plots(SWEET_EVENTS_DIR, date_list, folder_name, event_type_list)
+    # change invalid_edac_increases_corrected.txt file
+
+
+def plot_sweet_events_binned_one_plot():
+    def group_by_6_months(date):
+        return pd.Timestamp(date.year, ((date.month - 1) // 6) * 6 + 1, 1)
+    # stormy_days_df = read_stormy_sweet_dates()
+    # print(f"Number of SWEET stormy days is {len(stormy_days_df)}")
+    event_df = read_sweet_event_dates()
+    sep_df = event_df[event_df["type"] == "SEP"]
+ 
+    forbush_df = event_df[event_df["type"] == "Fd"]
+    print(f'Number of SWEET SEP events: {len(sep_df)}')
+    print(f'Number of SWEET Forbush decreases: {len(forbush_df)}')
+
+    start_date = datetime.strptime("2004-01-01", "%Y-%m-%d")
+
+    df_sun = process_sidc_ssn()
+    index_exact = np.where(df_sun["date"] == start_date)[0][0]
+    df_sun = df_sun.iloc[index_exact:]
+    sunspots_smoothed = savgol_filter(
+        df_sun["daily_sunspotnumber"], SUNSPOTS_SAVGOL, 3
+    )
+
+    event_df["6_month_group"] = event_df["date"].apply(group_by_6_months)
+    sep_df["6_month_group"] = sep_df["date"].apply(group_by_6_months)
+    forbush_df["6_month_group"] = forbush_df["date"].apply(group_by_6_months)
+
+    grouped_df = event_df.groupby("6_month_group").size().reset_index()
+    grouped_sep = sep_df.groupby("6_month_group").size().reset_index()
+    grouped_fd = forbush_df.groupby("6_month_group").size().reset_index()
+
+    grouped_df.columns = ["datebin", "counts"]
+    grouped_sep.columns = ["datebin", "counts"]
+    grouped_fd.columns = ["datebin", "counts"]
+    grouped_df["datebin"] = grouped_df["datebin"] + pd.DateOffset(months=3)
+    grouped_sep["datebin"] = grouped_sep["datebin"] + pd.DateOffset(months=3)
+    grouped_fd["datebin"] = grouped_fd["datebin"] + pd.DateOffset(months=3)
+    events_total = grouped_df["counts"].sum()
+    print("Number of events: ", events_total)
+
+
+    fig, ax1 = plt.subplots(figsize=(10, 7.5))
+    all_events_color = DETRENDED_EDAC_COLOR  # "#8ACE00"
+    sepcolor = "#EE3377"  # "#FF6663"
+    fdcolor = "#984ea3"
+    suncolor = "#9B612F"  # "#a65628"
+    ax2 = ax1.twinx()
+    ax1.plot(
+        df_sun["date"],
+        sunspots_smoothed,
+        linewidth=2,
+        color=suncolor,
+        label="Smoothed sunspots",
+    )
+    ax2.plot(
+        grouped_df["datebin"],
+        grouped_df["counts"],
+        marker="o",
+        color=all_events_color,
+        label="Total number of events",
+    )
+    ax2.plot(
+        grouped_sep["datebin"][:-1],
+        grouped_sep["counts"][:-1],
+        marker="o",
+        color=sepcolor,
+        label="Number of SWEET SEP events",
+        linewidth=1,
+        alpha=1,
+    )
+
+    ax2.plot(
+        grouped_fd["datebin"],
+        grouped_fd["counts"],
+        marker="o",
+        color=fdcolor,
+        label="Number of SWEET FDs",
+        linewidth=1,
+        alpha=1,
+    )
+
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax2.minorticks_on()
+    ax1.minorticks_on()
+    ax2.xaxis.set_major_locator(YearLocator(4))
+    ax2.xaxis.set_minor_locator(YearLocator(1))
+    ax2.tick_params(which='minor', length=6)
+    ax1.tick_params(which='minor', length=6)
+
+    ax2.set_ylim([0, grouped_df["counts"].max()+10])
+    ax1.set_ylim([0, max(sunspots_smoothed + 10)])
+    ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+    ax2.set_ylabel("Number of SWEET events", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Sunspot number", fontsize=FONTSIZE_AXES_LABELS,
+        color=suncolor)
+    ax2.tick_params(axis="y") #labelcolor=all_events_color)
+    ax1.tick_params(axis="y", labelcolor=suncolor)
+    ax2.yaxis.set_minor_locator(MultipleLocator(2))
+    ax2.yaxis.set_major_locator(MultipleLocator(4))
+
+    ax1.yaxis.set_minor_locator(MultipleLocator(10))
+    ax1.yaxis.set_major_locator(MultipleLocator(20))
+
+
+    ax1.yaxis.tick_right()
+    ax1.yaxis.set_label_position("right")
+
+    ax2.yaxis.tick_left()
+    ax2.yaxis.set_label_position("left")
+
+
+    handles, labels = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+
+    # Draw grid first with the lowest z-order
+    ax2.grid(True, zorder=0)
+
+    ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right',
+               bbox_to_anchor=(0.9, 1))
+    ax2.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
+    # Draw the legend with a higher z-order
+    #legend = ax1.legend(
+    #    handles + handles2, labels + labels2, 
+    #    loc="upper left",
+    #    fontsize=FONTSIZE_LEGENDS - 2,
+    #    framealpha=1  # Make the legend box opaque
+    #)
+
+    # Make sure the legend is on top
+    #legend.set_zorder(3)  
+
+    
+    #ax2.legend(loc="upper left", fontsize=FONTSIZE_LEGENDS)
+    #ax1.legend(loc="upper right", fontsize=FONTSIZE_LEGENDS,
+    #           bbox_to_anchor=(0.9, 1))
+
+
+    plt.title("Sunspot number and number of SWEET events in 6-month bins",
+              fontsize=FONTSIZE_TITLE,
+              pad=10)
+    
+    plt.savefig("sweet_binned_v2.png",
+    dpi=300,
+    transparent=False,
+        )
+    plt.savefig("sweet_binned_v2.eps",
+    dpi=300,
+    transparent=False,
+        )
+    plt.show()
+
+
 if __name__ == "__main__":
     # plot_count_rate_with_fit()
     # plot_gcr_fit_ssn()
@@ -735,3 +911,5 @@ if __name__ == "__main__":
     # plot_histogram_rates()
     # plot_cumulative_detrended_rates()
     plot_detrended_with_threshold()
+    plot_sweet_events_binned_one_plot()
+    #plot_invalid_edac_increases()
