@@ -240,7 +240,7 @@ def plot_rates_only():
     # ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
     ax1.grid()
     # fig.suptitle("brat")
-    fig.suptitle("MEX EDAC daily rate between Jan. 2004 and Jul. 2024",
+    fig.suptitle("MEX EDAC daily rate between Jan. 2004 and Aug. 2025",
                  fontsize=FONTSIZE_TITLE)
     plt.tight_layout(pad=1.0)
     plt.savefig('daily_rate_mex_edac_v3.eps',
@@ -285,5 +285,5 @@ def plot_rolling_rate():
 
 if __name__ == "__main__":
     #plot_raw_edac()
-    #plot_zero_set_correction()
-    plot_raw_and_zerosetcorrected()
+    plot_zero_set_correction()
+    #plot_rates_only()
