@@ -5,7 +5,7 @@ import matplotlib.dates as mdates
 from matplotlib.colors import LogNorm
 from datetime import datetime
 import seaborn as sns
-# from read_maven_sep_flux_data import read_maven_sep_flux_data, create_master_maven_sep_flux_data
+
 from sweet_code.instruments.read_maven_sep_data import read_maven_sep_flux_data
 
 # Kan justere størrelse på tekst i figur her
@@ -94,14 +94,14 @@ def plot_maven_sep_data_channelwise(filename):
 
 def plot_maven_sep_fluxes_data_heatmap():
 
-    df = create_master_maven_sep_flux_data()
-
+    df = read_maven_sep_flux_data()
+    print(df)
     current_date = datetime.strptime("2023-05-05", "%Y-%m-%d")
-    #start_date = current_date - pd.Timedelta(days=5)
-    #end_date = current_date + pd.Timedelta(days=5)
-    #df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
+    start_date = current_date - pd.Timedelta(days=14)
+    end_date = current_date + pd.Timedelta(days=14)
+    df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
 
-
+    print(df)
     df_ion_flux = df.iloc[:,3:31]
     df_electron_flux = df.iloc[:,31:-2]
     df_datetime = df["datetime"]
@@ -129,8 +129,8 @@ def plot_maven_sep_fluxes_data_heatmap():
     axes[0].set_ylabel('Ion energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
     axes[1].set_ylabel('Electron energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
 
-    ion_tick_indices = np.arange(0, len(df_ion.index), 2500)
-    ion_tick_labels = df_ion.index[ion_tick_indices].date  #
+    ion_tick_indices = np.arange(0, len(df_ion.index), 5) # ADJUST THE NUMBER OF TICKS HERE
+    ion_tick_labels = df_ion.index[ion_tick_indices].date  
 
     axes[1].set_xticks(ion_tick_indices)
     axes[1].set_xticklabels(ion_tick_labels, fontsize=FONTSIZE_AXES_TICKS, 
