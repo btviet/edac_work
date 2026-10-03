@@ -5,7 +5,8 @@ import matplotlib.dates as mdates
 from matplotlib.colors import LogNorm
 from datetime import datetime
 import seaborn as sns
-from read_maven_sep_data import read_maven_sep_flux_data
+# from read_maven_sep_flux_data import read_maven_sep_flux_data, create_master_maven_sep_flux_data
+from sweet_code.instruments.read_maven_sep_data import read_maven_sep_flux_data
 
 # Kan justere størrelse på tekst i figur her
 FONTSIZE_AXES_LABELS = 14
@@ -91,15 +92,14 @@ def plot_maven_sep_data_channelwise(filename):
 
 
 
-def plot_maven_sep_fluxes_data_heatmap(filename):
-    df = read_maven_sep_flux_data(filename)
-    # Kan bruke de fire neste linjene med kode for
-    # å plotte et tids- intervall av omniweb-dataen
-    # Her er et eksempel på 10 dager, der 18. mai 2024 er i midten
+def plot_maven_sep_fluxes_data_heatmap():
+
+    df = create_master_maven_sep_flux_data()
+
     current_date = datetime.strptime("2023-05-05", "%Y-%m-%d")
-    start_date = current_date - pd.Timedelta(days=5)
-    end_date = current_date + pd.Timedelta(days=5)
-    df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
+    #start_date = current_date - pd.Timedelta(days=5)
+    #end_date = current_date + pd.Timedelta(days=5)
+    #df = df[(df['datetime']>=start_date) & (df['datetime'] <= end_date)]
 
 
     df_ion_flux = df.iloc[:,3:31]
@@ -128,7 +128,8 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
 
     axes[0].set_ylabel('Ion energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
     axes[1].set_ylabel('Electron energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
-    ion_tick_indices = np.arange(0, len(df_ion.index), 24)
+
+    ion_tick_indices = np.arange(0, len(df_ion.index), 2500)
     ion_tick_labels = df_ion.index[ion_tick_indices].date  #
 
     axes[1].set_xticks(ion_tick_indices)
@@ -170,7 +171,8 @@ def plot_maven_sep_fluxes_data_heatmap(filename):
 
 
 if __name__ == "__main__":
-    filename = 'maven_f_flux_hr_aurora_attempt_2'
 
-    plot_maven_sep_data_channelwise(filename)
+
+    plot_maven_sep_fluxes_data_heatmap()
+    
     #plot_maven_sep_fluxes_data_heatmap(filename)
