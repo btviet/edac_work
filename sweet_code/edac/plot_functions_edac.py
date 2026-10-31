@@ -296,7 +296,5 @@ def create_large_edac_increments_plots():
         plt.close()
 
 if __name__ == "__main__":
-    # plot_raw_edac()
-    # plot_zero_set_correction()
     plot_rates_only()
-    #create_large_edac_increments_plots()
+

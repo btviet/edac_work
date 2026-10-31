@@ -221,7 +221,6 @@ def process_raw_edac():
     create_resampled_edac()
 
 
-
 def preprocess_raw_edac_2025():
     """
     Process the 2025 edition of the MEX EDAC data file,
@@ -237,7 +236,6 @@ def preprocess_raw_edac_2025():
     df.rename(columns={'# DATE TIME': 'datetime', 'NDMW0D0G - AVG - 1 Non [MEX]': 'edac'},
                         inplace=True)
     df.to_csv(PROCESSED_DATA_DIR / 'mex_edac_2025.txt', sep='\t', index=False)
-
 
 
 def patch_edac_files():
@@ -259,8 +257,6 @@ def patch_edac_files():
     df_all.to_csv(PROCESSED_DATA_DIR / 'patched_mex_edac_2025.txt', sep='\t', index=False)
 
 
-
-    
 if __name__ == "__main__":
 
     process_raw_edac()
