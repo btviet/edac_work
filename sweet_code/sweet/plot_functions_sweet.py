@@ -46,7 +46,6 @@ def plot_count_rate_with_fit():
     df = read_resampled_df()
     detrended_df = read_detrended_rates()
     rate_mean = round(df['daily_rate'].mean(), 3)
-    print(df.sort_values(by='daily_rate'))
 
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.plot(df["date"], df["daily_rate"],
@@ -56,6 +55,7 @@ def plot_count_rate_with_fit():
     ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
     ax1.set_ylabel("MEX EDAC count rate [#/day]",
                    fontsize=FONTSIZE_AXES_LABELS)
+
     ax1.plot(
         detrended_df["date"],
         detrended_df["gcr_component"],
@@ -71,7 +71,7 @@ def plot_count_rate_with_fit():
     ax1.xaxis.set_minor_locator(YearLocator(1))
     ax1.tick_params(which='minor', length=6)
     ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
-    ax1.legend(fontsize=FONTSIZE_LEGENDS)
+    # ax1.legend(fontsize=FONTSIZE_LEGENDS)
 
     ax1.grid()
     ax1.set_ylim([-1, 20])
@@ -81,6 +81,7 @@ def plot_count_rate_with_fit():
                  fontsize=FONTSIZE_TITLE-4)
     plt.tight_layout(pad=1.0)
     plt.show()
+
 
 
 def plot_gcr_fit_ssn():
@@ -140,9 +141,11 @@ def plot_gcr_fit_ssn():
         fontsize=FONTSIZE_LEGENDS, bbox_to_anchor=(0.02, 1)) 
     # ax1.legend(loc='upper left')
     # ax2.legend(loc='upper right')
-    ax2.set_ylim([detrended_df["gcr_component"].min()-0.05, 2.1])
+    ax2.set_ylim([detrended_df["gcr_component"].min()-0.05, 2.3])
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout(pad=1.0)
+    plt.savefig('gcr_component_with_sun.png',
+                dpi=300, transparent=False)
     plt.show()
 
 
@@ -289,6 +292,10 @@ def plot_rates_and_ssn():
     minor_x_locator = YearLocator(1)
     ax1.xaxis.set_minor_locator(minor_x_locator)
 
+    #ax3.xaxis.set_major_locator(mdates.DayLocator(3))
+    ax3.xaxis.set_minor_locator(mdates.DayLocator())
+
+
     ax1.tick_params(which='minor', length=6)
     ax2.tick_params(which='minor', length=6)
     ax3.tick_params(which='minor', length=6)
@@ -315,9 +322,76 @@ def plot_rates_and_ssn():
     fig.suptitle("MEX EDAC count rates with the solar activity cycle",
                  fontsize=FONTSIZE_TITLE, y=0.99) #0.92
     plt.tight_layout(pad=1.0)
-
+    plt.savefig('mex_edac_count_rates_with_ssn.png')
     plt.show()
 
+
+def plot_count_and_rates_one_plot(startdate, enddate):
+    raw_edac = read_zero_set_correct()
+    filtered_raw = raw_edac.copy()
+    filtered_raw = filtered_raw[
+        (filtered_raw["datetime"] > startdate) &
+        (filtered_raw["datetime"] < enddate)
+    ]
+
+    df = read_detrended_rates()
+    df = df[(df["date"] > startdate) & (df["date"] < enddate)]
+    print(df)
+
+    fig, ax1 = plt.subplots(1, figsize=(8, 6))
+    ax1.plot(df["date"], df["detrended_rate"], marker="o",
+             label="Detrended count rate", color=DETRENDED_EDAC_COLOR)
+    ax1.axhline(
+        UPPER_THRESHOLD, label='Noise threshold',
+        linestyle='dashed',
+        color=THRESHOLD_COLOR)
+    
+    #ax1.axvline(x=datetime.strptime("2006-02-19 12:00", "%Y-%m-%d %H:%M"),
+    #            linestyle='dashed',
+    #            color='black',
+    #            label='SEP event')
+    ax2 = ax1.twinx()
+    ax2.scatter(filtered_raw["datetime"], filtered_raw["edac"],
+                label="EDAC count", s=3, color=ZEROSET_COLOR)
+    
+    
+    ax1.set_xlabel("Date", fontsize=20),
+    ax1.set_ylabel("EDAC count rate [#/day]", fontsize=20, color=DETRENDED_EDAC_COLOR)
+    ax2.set_ylabel("EDAC count [#]", fontsize=20, color=ZEROSET_COLOR)
+    
+
+    #ax1.set_xlim(datetime.strptime("2006-02-13", "%Y-%m-%d"), 
+    #             datetime.strptime("2006-02-26", "%Y-%m-%d"))
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+
+    major_ticks_locations =  [onset_time.date() + pd.Timedelta(days=4 * i) 
+                              for i in range(-3, 4)]  
+    ax1.set_xticks(major_ticks_locations)
+    ax1.xaxis.set_minor_locator(DayLocator())
+    ax1.yaxis.set_major_locator(MultipleLocator(1))
+    ax1.yaxis.set_minor_locator(MultipleLocator(0.5))
+    ax2.yaxis.set_major_locator(MultipleLocator(2))
+    ax2.yaxis.set_minor_locator(MultipleLocator(1))
+
+    ax1.set_ylim([-1, 3])
+    
+    date_format = DateFormatter('%b %d')  # '%b' = abbreviated month name, '%d' = day of month
+    ax1.xaxis.set_major_formatter(date_format)
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles4, labels4 = ax2.get_legend_handles_labels()
+    handles = handles1 + handles4
+    labels = labels1 + labels4
+    ax1.legend(handles, labels, loc='upper left', fontsize=FONTSIZE_LEGENDS)
+
+    #ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right')
+    ax1.grid()
+    #fig.suptitle("Example of a SWEET SEP event and FD", fontsize=24, y=1.001)
+    plt.tight_layout()
+    plt.show()
+ 
 
 def show_timerange(startdate, enddate):
     """
@@ -335,6 +409,7 @@ def show_timerange(startdate, enddate):
 
     df = read_detrended_rates()
     df = df[(df["date"] > startdate) & (df["date"] < enddate)]
+    print(df)
     edac_change = filtered_raw.drop_duplicates(
         subset="edac", keep="first", inplace=False
     )  # Datetimes where the EDAC is increasing
@@ -431,106 +506,8 @@ def show_timerange(startdate, enddate):
     plt.savefig(LOCAL_DIR / 'events' /
                 f'edac_{startdate_string}{enddate_string}.png',
                 dpi=300, transparent=False)
-    #plt.show()
-    plt.close()
-
-    fig, ax1 = plt.subplots(1, figsize=(8, 6))
-    ax1.plot(df["date"], df["detrended_rate"], marker="o",
-             label="Detrended count rate", color=DETRENDED_EDAC_COLOR)
-    ax1.axhline(
-        UPPER_THRESHOLD, label='Noise threshold',
-        linestyle='dashed',
-        color=THRESHOLD_COLOR)
-    
-    ax1.axvline(x=datetime.strptime("2006-02-19 12:00", "%Y-%m-%d %H:%M"),
-                linestyle='dashed',
-                color='black',
-                label='SEP event')
-    ax2 = ax1.twinx()
-    ax2.scatter(filtered_raw["datetime"], filtered_raw["edac"],
-                label="EDAC count", s=3, color=ZEROSET_COLOR)
-    
-    
-    ax1.set_xlabel("Date", fontsize=20),
-    ax1.set_ylabel("EDAC count rate [#/day]", fontsize=20, color=DETRENDED_EDAC_COLOR)
-    ax2.set_ylabel("EDAC count [#]", fontsize=20, color=ZEROSET_COLOR)
-    
-
-    ax1.set_xlim(datetime.strptime("2006-02-13", "%Y-%m-%d"), 
-                 datetime.strptime("2006-02-26", "%Y-%m-%d"))
-    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
-    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
-    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
-    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
-
-
-    ax1.yaxis.set_major_locator(MultipleLocator(2))
-    ax1.yaxis.set_minor_locator(MultipleLocator(1))
-    ax2.yaxis.set_major_locator(MultipleLocator(4))
-    ax2.yaxis.set_minor_locator(MultipleLocator(2))
-    date_format = DateFormatter('%b %d')  # '%b' = abbreviated month name, '%d' = day of month
-    ax1.xaxis.set_major_formatter(date_format)
-    handles1, labels1 = ax1.get_legend_handles_labels()
-    handles4, labels4 = ax2.get_legend_handles_labels()
-    handles = handles1 + handles4
-    labels = labels1 + labels4
-    ax1.legend(handles, labels, loc='upper left', fontsize=FONTSIZE_LEGENDS)
-
-    #ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right')
-    ax1.grid()
-    fig.suptitle("Example of a SWEET SEP event and FD", fontsize=24, y=1.001)
-    plt.tight_layout()
     plt.show()
-    #plt.show()
-    plt.close()
-
-    fig, ax1 = plt.subplots(1, figsize=(8, 6))
-    ax1.plot(df["date"], df["detrended_rate"], marker="o",
-             label="Detrended count rate", color=DETRENDED_EDAC_COLOR)
-    ax1.axhline(
-        UPPER_THRESHOLD, label='Noise threshold',
-        linestyle='dashed',
-        color=THRESHOLD_COLOR)
-    
-    ax1.axvline(x=datetime.strptime("2006-02-19 12:00", "%Y-%m-%d %H:%M"),
-                linestyle='dashed',
-                color='black',
-                label='SEP event')
-    ax2 = ax1.twinx()
-    ax2.scatter(filtered_raw["datetime"], filtered_raw["edac"],
-                label="EDAC count", s=3, color=ZEROSET_COLOR)
-    
-    
-    ax1.set_xlabel("Date", fontsize=20),
-    ax1.set_ylabel("EDAC count rate [#/day]", fontsize=20, color=DETRENDED_EDAC_COLOR)
-    ax2.set_ylabel("EDAC count [#]", fontsize=20, color=ZEROSET_COLOR)
-    
-
-    ax1.set_xlim(datetime.strptime("2006-02-13", "%Y-%m-%d"), 
-                 datetime.strptime("2006-02-26", "%Y-%m-%d"))
-    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
-    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
-    ax2.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
-    ax2.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
-
-
-    ax1.yaxis.set_major_locator(MultipleLocator(2))
-    ax1.yaxis.set_minor_locator(MultipleLocator(1))
-    ax2.yaxis.set_major_locator(MultipleLocator(4))
-    ax2.yaxis.set_minor_locator(MultipleLocator(2))
-    date_format = DateFormatter('%b %d')  # '%b' = abbreviated month name, '%d' = day of month
-    ax1.xaxis.set_major_formatter(date_format)
-    handles1, labels1 = ax1.get_legend_handles_labels()
-    handles4, labels4 = ax2.get_legend_handles_labels()
-    handles = handles1 + handles4
-    labels = labels1 + labels4
-    ax1.legend(handles, labels, loc='upper left', fontsize=FONTSIZE_LEGENDS)
-
-    #ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right')
-    ax1.grid()
-    fig.suptitle("Example of a SWEET SEP event and FD", fontsize=24, y=1.001)
-    plt.tight_layout()
-    plt.show()
+    # plt.close()
 
 
 def plot_histogram_rates():
@@ -904,12 +881,121 @@ def plot_sweet_events_binned_one_plot():
     plt.show()
 
 
+def plot_cdf_and_histo_detrended_rates():
+    
+    # using subplot function and creating plot one
+    plt.figure(figsize=(14,6))
+    plt.subplot(1, 2, 1)  # row 1, column 2, count 1
+    df = read_detrended_rates()
+    print(df)
+    data = df["detrended_rate"]
+    print(df.sort_values(by='detrended_rate'))
+    mean = df["detrended_rate"].mean()
+    std_dev = df['detrended_rate'].std()
+    upper_threshold = mean+2*std_dev
+    lower_threshold = mean-1.5*std_dev
+    # binsize = 0.3
+    max_rate = np.max(data)
+    min_rate = np.min(data)
+    # bins = np.arange(
+    #    min_rate, max_rate + binsize, binsize
+    # )  # Choose the size of the bins
+    bin_edges = np.arange(int(min_rate)-1, int(max_rate)+1, 0.25)
+    counts, bin_edges = np.histogram(data, bins=bin_edges,
+                                     density=False)
+    # bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    plt.hist(data, bins=bin_edges, color=DETRENDED_EDAC_COLOR,
+             edgecolor="black")
+    plt.xticks(np.arange(int(min_rate)-2,
+                         int(max_rate)+1, 1))
+    plt.gca().xaxis.set_minor_locator(
+        plt.MultipleLocator(0.5))
+
+    plt.gca().yaxis.set_minor_locator(
+        plt.MultipleLocator(100))
+    plt.tick_params(which='major', length=10,
+                    labelsize=FONTSIZE_AXES_TICKS)
+    plt.tick_params(which='minor', length=6,
+                    labelsize=FONTSIZE_AXES_TICKS)
+    # plt.axvline(x=UPPER_THRESHOLD, label=f'{UPPER_THRESHOLD}',
+    # color="#EE7733", linestyle='dashed')
+
+    plt.title("Histogram of detrended count rates",
+              fontsize=FONTSIZE_TITLE)
+    plt.xlabel("Detrended count rate [#/day]",
+               fontsize=FONTSIZE_AXES_LABELS)
+    plt.ylabel("Occurrences", fontsize=FONTSIZE_AXES_LABELS)
+    plt.legend(fontsize=FONTSIZE_LEGENDS)
+    plt.xlim(-0.5, 6)
+    plt.grid()
+
+
+    ax1 = plt.subplot(1, 2, 2)
+    
+    df = read_detrended_rates()
+    sorted = np.sort(df["detrended_rate"])
+    cdf = np.arange(1, len(sorted) + 1) / len(sorted)
+    # print(cdf)
+    threshold = np.percentile(sorted, 92)
+    print(threshold)
+    ##percentile = percentileofscore(sorted, 2.0, kind="rank")
+    #print(f"The value {2.0} is at the {percentile:.2f}th percentile.")
+
+    # fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    plt.title("Cumul. distrib. of detrended count rates",
+              fontsize=FONTSIZE_TITLE)
+    ax1.plot(sorted, cdf, marker='.', 
+             linestyle='none', 
+             label="CDF of detrended EDAC daily count rates",
+             color=DETRENDED_EDAC_COLOR)
+    """
+    ax1.axhline(
+        0.92,
+        label="0.92",
+        color=THRESHOLD_COLOR
+    )
+    """
+    ax1.set_xlabel("Detrended count rate [#/day]", fontsize=FONTSIZE_AXES_LABELS)
+    ax1.set_ylabel("Probability", fontsize=FONTSIZE_AXES_LABELS)
+
+    ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+    ax1.tick_params(which='minor', length=6, labelsize=FONTSIZE_AXES_TICKS)
+
+    ax1.minorticks_on()
+
+    ax1.xaxis.set_major_locator(MultipleLocator(5))
+    ax1.xaxis.set_minor_locator(MultipleLocator(1))
+
+    ax1.yaxis.set_major_locator(MultipleLocator(0.2))
+    ax1.yaxis.set_minor_locator(MultipleLocator(0.1))
+    ax1.grid()
+
+    
+    # show plot
+    plt.tight_layout(pad=1.0)
+    plt.savefig('histo_cdf_edac_v3.png',
+                dpi=300, transparent=False)
+    
+    plt.show()
+
 if __name__ == "__main__":
     # plot_count_rate_with_fit()
+    # plot_count_rate_with_fit()
+    plot_detrended_with_threshold()
     # plot_gcr_fit_ssn()
     # plot_rates_and_ssn()
     # plot_histogram_rates()
     # plot_cumulative_detrended_rates()
-    plot_detrended_with_threshold()
-    plot_sweet_events_binned_one_plot()
+    # plot_detrended_with_threshold()
+    # plot_sweet_events_binned_one_plot()
     #plot_invalid_edac_increases()
+    # plot_cumulative_detrended_rates()
+    # plot_rates_and_ssn()
+    # plot_cdf_and_histo_detrended_rates()
+    
+    # plot_count_rate_with_fit()
+    # onset_time = datetime.strptime("2024-10-09 17:48", "%Y-%m-%d %H:%M")
+    # start_date = onset_time - pd.Timedelta(days=14)
+    # end_date = onset_time + pd.Timedelta(days=14)
+    # plot_count_and_rates_one_plot(start_date, end_date)

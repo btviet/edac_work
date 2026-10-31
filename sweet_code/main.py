@@ -1,8 +1,5 @@
-from detrend_edac import detrend
+from edac_work.sweet_code.sweet.detrend_edac import detrend
 from plot_functions import (
-    plot_raw_and_zerosetcorrected,
-    plot_rates_all,
-    plot_histogram_rates,
     create_event_plots,
     create_fd_plots,
     create_msl_rad_dates_sep_plots,
@@ -11,18 +8,15 @@ from plot_functions import (
     plot_stormy_days_bin,
     plot_sweet_events_binned,
 )
-from processing_edac import process_raw_edac
-from edac_work.sweet_code.validate_database_events import validate_sep_onsets
-from validate_sweet_events import cross_check_sweet
-from detect_sw_events import detect_sweet_events
+from edac_work.sweet_code.edac.processing_edac import process_raw_edac
+from validate_sep_events import validate_sep_onsets
+from edac_work.sweet_code.validation.validate_sweet_events import cross_check_sweet
+
 
 def sweet():
-    # process_raw_edac()  # Reads raw EDAC, zerosets, resamples
-    # plot_raw_and_zerosetcorrected()
-    # detrend()
-    # plot_rates_all()
-    # plot_histogram_rates()
-    detect_sweet_events() # Find SWEET SEP events and Fds
+    process_raw_edac()  # Reads raw EDAC, zerosets, resamples
+    detrend() # 
+    # detect_sweet_events() # Find SWEET SEP events and Fds
 
 
 def rolling_method():
@@ -52,10 +46,13 @@ def validate_real_events():
 def validate_sweet_events():
     cross_check_sweet()
 
+def main():
+    print("yiha")
 
 if __name__ == "__main__":
+    main()
     # rolling_method()
-    sweet()
+    # sweet()
     # detrend()
     # detect_sweet_events() # Find SWEET SEP events and Fds
     # plots()

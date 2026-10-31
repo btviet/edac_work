@@ -1,4 +1,11 @@
-from parameters import MEX_ASPERA_DIR 
+
+import sys
+import os
+
+parent_directory = os.path.abspath('../edac_work')
+sys.path.append(parent_directory)
+
+from sweet_code.parameters import MEX_ASPERA_DIR 
 import pandas as pd
 from scipy.signal import savgol_filter
 
@@ -16,7 +23,7 @@ def create_ima_background_counts_df():
     path = MEX_ASPERA_DIR / ima_bg_counts_folder
     column_headers = ['datetime', 'bg_counts', 'total_counts']
     total_df = pd.DataFrame(columns=column_headers)
-    for i in range(2004, 2025):
+    for i in range(2004, 2026):
         df = pd.read_csv(path / f'E_IM{str(i)}.dat.txt',
                      names=column_headers,
                      parse_dates=['datetime'],
@@ -130,7 +137,10 @@ def read_ima_manual_events():
     sorted = df.sort_values(by="peak_bg_count")
     print(sorted)
     return df
+
+
 if __name__ == "__main__":
+    # create_ima_background_counts_df()
     # create_ima_background_counts_df()
     # df = read_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
     # print(df.iloc[0:10])
@@ -139,9 +149,11 @@ if __name__ == "__main__":
     # df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
     # print(df.iloc[40:60])
     # read_aspera_sw_moments()
-    read_ima_manual_events()
+    # read_ima_manual_events()
     #resample_mex_ima_bg_counts()
 
     # apply_sg_filter_to_ima_bg_counts()
     # df = read_mex_ima_bg_counts()
     # print(df)
+    df = read_mex_ima_bg_counts()
+    print(df)
