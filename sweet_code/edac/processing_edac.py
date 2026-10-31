@@ -3,14 +3,14 @@ import os
 
 parent_directory = os.path.abspath('../edac_work')
 sys.path.append(parent_directory)
-from sweet_code.parameters import PROCESSED_DATA_DIR
+from sweet_code.parameters import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
 import time
 
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-#from sweet_code.parameters import PROCESSED_DATA_DIR, RAW_DATA_DIR
+
 from datetime import datetime
 load_dotenv()
 
@@ -18,16 +18,13 @@ load_dotenv()
 def read_rawedac():
     """
     Returns a Pandas DataFrame with the
-    patched MEX EDAC from 2025
+    patched MEX EDAC data
     Columns in df:
         datetime: datetime of the reading
         edac: sampled value
 
     """
-    # df = pd.read_csv(RAW_DATA_DIR/ "patched_mex_edac.txt",
-    #                  skiprows=0, sep="\t", parse_dates=['datetime'])
-    
-    df = pd.read_csv(PROCESSED_DATA_DIR/ "patched_mex_edac_2025.txt",
+    df = pd.read_csv(RAW_DATA_DIR / "patched_mex_edac_2025.txt",
                      skiprows=0, sep="\t", parse_dates=['datetime'])
     df['datetime'] = pd.to_datetime(df['datetime'], format='ISO8601')
     return df
@@ -255,7 +252,7 @@ def patch_edac_files():
     df_2025 = pd.read_csv(PROCESSED_DATA_DIR/ "mex_edac_2025.txt",
                      skiprows=0, sep="\t", parse_dates=['datetime'])
     
-    df_2025 = df_2025[df_2025["datetime"] >last_date]
+    df_2025 = df_2025[df_2025["datetime"] > last_date] # where the 2024 one ends
 
     df_all = pd.concat([df, df_2025], axis=0)
 
@@ -265,8 +262,5 @@ def patch_edac_files():
 
     
 if __name__ == "__main__":
-    print("hello")
-    # process_raw_edac()
-    # create_resampled_edac()
-    # create_zero_set_correct()
-    # read_zero_set_correct()
+
+    process_raw_edac()
