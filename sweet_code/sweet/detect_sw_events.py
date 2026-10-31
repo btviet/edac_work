@@ -1,17 +1,22 @@
+import sys
 import os
+
+parent_directory = os.path.abspath('../edac_work')
+sys.path.append(parent_directory)
 
 import pandas as pd
 from sweet_code.sweet.detrend_edac import read_detrended_rates
-from parameters import (
+from sweet_code.parameters import (
     FD_NUMBER_DAYS,
     LOWER_THRESHOLD,
     SWEET_EVENTS_DIR,
     UPPER_THRESHOLD,
-    TOOLS_OUTPUT_DIR
+    TOOLS_OUTPUT_DIR,
+    SWEET_EVENTS_DIR
 )
 from sweet_code.edac.processing_edac import read_resampled_df
 
-sep_dates_filename = 'sweet_sep_dates.txt'
+sep_dates_filename = 'sweet_stormy_sep_days.txt'
 sep_events_filename = f'sep_events_sweet_{UPPER_THRESHOLD}.txt'
 extra_sep_days_filename = 'extra_sweet_sep_days.txt'
 extra_sep_events_filename = 'extra_sweet_sep_events.txt'
@@ -35,7 +40,7 @@ def find_sweet_sep():
 
     peaks = spike_df[(spike_df['detrended_rate'] > UPPER_THRESHOLD)].copy()
     # Remove invalid dates
-    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases_corrected.txt",
+    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
                                 parse_dates=["datetime"])
 
     date_list = invalid_dates["datetime"].dt.date.tolist()
@@ -66,6 +71,7 @@ def find_sweet_sep():
     event_df.rename(columns={'mean_value': 'mean_rate',
                              'max_value': 'max_rate'}, inplace=True)
     print(f'Number of SWEET SEP events is {len(event_df)}')
+    print(event_df)
     event_df.to_csv(SWEET_EVENTS_DIR / sep_events_filename,
                     sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}\\{sep_events_filename} created")
@@ -172,7 +178,7 @@ def read_extra_sweet_sep_events(limit, duration):
 def find_sweet_forbush_decreases():
     """
     Find the dates where the EDAC count rate
-    is 0 for more than FD_NUMBER_DAYS days
+    is 0 for at least FD_NUMBER_DAYS days
     """
     print("------ Finding SWEET Forbush decreases --------")
     resampled_df = read_resampled_df()
@@ -212,25 +218,12 @@ def read_sweet_sep_events():
     Columns:
         start_date: Date at noon
         duration: how many days above UPPER_THRESHOLD
+        mean_rate: the mean SWEET count rate for the SEP event
+        max_rate: the highest SWEET count rate for the SEP event
     """
     df = pd.read_csv(SWEET_EVENTS_DIR / sep_events_filename,
                      skiprows=0, sep="\t", parse_dates=['start_date'])
     df['type'] = 'SEP'
-    return df
-
-def read_sweet_sep_events_old():
-    """
-    Returns a Pandas Dataframe with the
-    start dates of each SWEET SEP event,
-    and the duration
-    Columns:
-        start_date: Date at noon
-        duration: how many days above UPPER_THRESHOLD
-    """
-    df = pd.read_csv(SWEET_EVENTS_DIR / sep_events_filename,
-                     skiprows=0, sep="\t", parse_dates=['start_date'])
-    df['type'] = 'SEP'
-    # print(df['duration'].value_counts())
     return df
 
 
@@ -303,6 +296,10 @@ def read_sweet_zero_days():
 
 
 def create_stormy_days_list():
+    """
+    Create a file with all dates that are either in a
+    SWEET SEP event or SWEET Forbush decrease
+    """
     sep_dates = read_sweet_sep_dates()
     forbush_dates = read_sweet_zero_days()
     stormy_df = pd.concat([sep_dates, forbush_dates], ignore_index=True)
@@ -391,25 +388,8 @@ def detect_sweet_events_rolling_rate():
 
 
 if __name__ == "__main__":
-    if not os.path.exists(SWEET_EVENTS_DIR):
-        os.makedirs(SWEET_EVENTS_DIR)
-    #detect_sweet_events()
-    #create_stormy_days_list()
-    #df = read_sweet_event_dates()
-    create_sw_event_list()
-    #start_date = pd.to_datetime('2012-08-12 12:00:00')
-    #end_date = pd.to_datetime('2016-12-31 12:00:00')
-    #df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-    #print(df['type'].value_counts())
-    # df = read_sweet_forbush_decreases()
-    # print(df)
     # find_sweet_sep()
-    # df = read_sweet_sep_dates()
-    # df = read_sweet_sep_events()
-
-    # find_sweet_sep_by_consecutive_days(0, 3)
-    # find_sweet_sep_by_consecutive_days(0, 4)
-    # find_sweet_sep_by_consecutive_days(0, 5)
-    # find_sweet_sep_by_consecutive_days(1, 4)
-    # find_sweet_sep_by_consecutive_days(1.5, 4)
-    # find_sweet_sep_by_consecutive_days(2, 4)
+    # find_sweet_forbush_decreases()
+    # create_stormy_days_list()
+    create_sw_event_list()
+    # create_stormy_days_list()

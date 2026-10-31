@@ -39,32 +39,22 @@ def create_detrended_rates():
     """
     start_time = time.time()
     print("--------- Starting the de-trending process ---------")
-    if DETREND_METHOD == 'division':
-        # smoothing_df = read_rolling_rates(11)
-        # gcr_component = savitzky_fit_gcr(smoothing_df)
-        # rate_df = read_rolling_rates(5)
-        rate_df = read_resampled_df()
-        gcr_component = savitzky_fit_gcr(rate_df)
 
-    else:
-        # rate_df = read_rolling_rates(5)
-        # smoothing_df = read_rolling_rates(11)
-        # gcr_component = savitzky_fit_gcr(smoothing_df)
-        rate_df = read_resampled_df()
-        gcr_component = savitzky_fit_gcr(rate_df)
+    rate_df = read_resampled_df()
+    gcr_component = savitzky_fit_gcr(rate_df)
+
 
     first_gcr = gcr_component['date'].iloc[0]
     last_gcr = gcr_component['date'].iloc[-1]
     first_rate = rate_df['date'].iloc[0]
     last_rate = rate_df['date'].iloc[-1]
-    if first_gcr >= first_rate:
+    # Slicing the resampled df and the Savitzky-Golay df to have same end points
+    if first_gcr >= first_rate: 
         rate_df = rate_df[rate_df['date'] >= first_gcr]
     else:
         gcr_component = gcr_component[gcr_component['date'] >= first_rate]
-
     if last_gcr >= last_rate:
         gcr_component = gcr_component[gcr_component['date'] <= last_rate]
-
     else:
         rate_df = rate_df[rate_df['date'] <= last_gcr]
 
@@ -74,18 +64,6 @@ def create_detrended_rates():
     detrended_df = rate_df.copy()
     detrended_df['gcr_component'] = gcr_component['fit']
 
-    # print(gcr_component['fit'].isna().sum())
-    # print(len(gcr_component))
-    # print(detrended_df['gcr_component'].isna().sum())
-
-    # gcr_component['date'] = gcr_component['date'].dt.date
-
-    # detrended_df['date'] = detrended_df['date'].dt.date
-
-    # gcr_dates = gcr_component['date'].to_list()
-    # detrended_dates = detrended_df['date'].to_list()
-    # c = (set(gcr_dates) - set(detrended_dates))
-
     if DETREND_METHOD == 'division':
         detrended_df['detrended_rate'] = \
             detrended_df['daily_rate']/detrended_df['gcr_component']  # - 1
@@ -93,6 +71,7 @@ def create_detrended_rates():
     else:  # Detrend by subtraction
         detrended_df['detrended_rate'] = \
             detrended_df['daily_rate']-detrended_df['gcr_component']
+        
     mean_count_rate = detrended_df['detrended_rate'].mean()
     print(f'Mean detrended count rate: {mean_count_rate}')
     filename = 'detrended_edac.txt'
@@ -157,6 +136,5 @@ def detrend():
 if __name__ == "__main__":
 
     create_detrended_rates()
-    df = read_detrended_rates()
     #print(df.sort_values(by="detrended_rate"))
     #print(df["detrended_rate"].mean())
