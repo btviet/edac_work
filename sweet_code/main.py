@@ -1,4 +1,8 @@
-from edac_work.sweet_code.sweet.detrend_edac import detrend
+import sys
+import os
+
+from sweet.detrend_edac import detrend
+"""
 from plot_functions import (
     create_event_plots,
     create_fd_plots,
@@ -8,15 +12,26 @@ from plot_functions import (
     plot_stormy_days_bin,
     plot_sweet_events_binned,
 )
-from edac_work.sweet_code.edac.processing_edac import process_raw_edac
-from validate_sep_events import validate_sep_onsets
-from edac_work.sweet_code.validation.validate_sweet_events import cross_check_sweet
+"""
 
+from sweet_code.sweet.detect_sw_events import detect_sweet_events
+from edac.processing_edac import process_raw_edac
+from edac.plot_functions_edac import create_large_edac_increments_plots
+# from validate_sep_events import validate_sep_onsets
+# from validation.validate_sweet_events import cross_check_sweet
+from tools import find_multiple_edac_increments
+from sweet_code.parameters import (
+    SWEET_EVENTS_DIR,
+    TOOLS_OUTPUT_DIR
+)
 
-def sweet():
+def run_sweet():
     process_raw_edac()  # Reads raw EDAC, zerosets, resamples
-    detrend() # 
-    # detect_sweet_events() # Find SWEET SEP events and Fds
+    find_multiple_edac_increments() # Find invalid EDAC increments
+    # It is recommended to plot the EDAC counter for all of these dates and inspect htme
+    create_large_edac_increments_plots()
+    detrend() # Detrend the EDAC
+    detect_sweet_events() # Find SWEET SEP events and Fds
 
 
 def rolling_method():
@@ -46,13 +61,21 @@ def validate_real_events():
 def validate_sweet_events():
     cross_check_sweet()
 
-def main():
-    print("yiha")
+
+
+def create_directories():
+    if not os.path.exists(SWEET_EVENTS_DIR):
+        os.makedirs(SWEET_EVENTS_DIR)
+        print(f'{SWEET_EVENTS_DIR} created')
+    if not os.path.exists(TOOLS_OUTPUT_DIR):
+        os.makedirs(TOOLS_OUTPUT_DIR)
+        print(f'{TOOLS_OUTPUT_DIR} created')
 
 if __name__ == "__main__":
-    main()
+    create_directories()
+    # run_sweet()
     # rolling_method()
-    # sweet()
+
     # detrend()
     # detect_sweet_events() # Find SWEET SEP events and Fds
     # plots()

@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv(dotenv_path='C:\\Users\\shayl\\OneDrive - NTNU\\edac_repo\\edac_work\\.env')
 
 def _fix_path(env_name: str) -> Path:
     _dir = os.getenv(env_name)
@@ -20,3 +19,8 @@ def get_project_root() -> Path:
 
 def get_data_dir() -> Path:
     return _fix_path("DATA_DIR")
+
+
+if __name__ == "__main__":
+    print("yay")
+    print(get_data_dir())

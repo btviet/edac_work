@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from edac_work.sweet_code.sweet.detect_sw_events import (
+from sweet.detect_sw_events import (
     read_extra_sweet_sep_events,
     read_stormy_sweet_dates,
     read_sweet_event_dates,
     read_sweet_forbush_decreases,
     read_sweet_sep_events,
 )
-from edac_work.sweet_code.sweet.detrend_edac import read_detrended_rates
+from sweet.detrend_edac import read_detrended_rates
 from matplotlib.dates import YearLocator, DayLocator
 from matplotlib.ticker import MultipleLocator
 from old_sweet_comparison import read_cme_validation_results_old
@@ -43,22 +43,13 @@ from parameters import (
     RAD_B_COLOR,
     TOOLS_OUTPUT_DIR
 )
-from edac_work.sweet_code.process_edac.processing_edac import (
+from edac.processing_edac import (
     read_rawedac,
     read_resampled_df,
     read_rolling_rates,
     read_zero_set_correct,
 )
-from edac_work.sweet_code.read_data.read_from_database import (
-    read_forbush_decreases_maven,
-    read_forbush_decreases_rad,
-    read_sep_events_maven,
-    read_sep_events_rad,
-    read_mex_safe_modes,
-    read_rad_onsets,
-    read_sep_database_events,
-    read_forbush_decreases_database,
-)
+
 from scipy.signal import savgol_filter
 # from scipy.stats import percentileofscore
 from validate_cme_events import read_cme_validation_results
@@ -70,8 +61,19 @@ from edac_work.sweet_code.instruments.read_mex_aspera_data import (
     clean_up_mex_ima_bg_counts,
     read_aspera_sw_moments)
 from edac_work.sweet_code.instruments.read_msl_rad_data import read_msl_rad_doses, read_msl_rad_filtered_e_doses
-from read_maven_sep_data import read_maven_sep_flux_data
+from edac_work.sweet_code.instruments.old_maven_Read import read_maven_sep_flux_data
 from read_euhforia_files import read_euhforia_mars_dsv_file
+
+
+#from edac_work.sweet_code.read_data.read_from_database import (
+#    read_forbush_decreases_maven,
+#    read_forbush_decreases_rad,
+#    read_sep_events_maven,
+#    read_sep_events_rad,
+#    read_mex_safe_modes,
+#    read_rad_onsets,
+#    read_sep_database_events,
+#    read_forbush_decreases_database )
 
 
 def create_fd_database_plots():
@@ -398,17 +400,12 @@ def plot_stormy_days_bin():
     plt.show()
 
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
 
-
-
->>>>>>> Stashed changes
 def plot_sweet_events_binned():
-=======
+    print("yiha")
+
 def plot_sweet_events_binned_one_plot():
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+
     def group_by_6_months(date):
         return pd.Timestamp(date.year, ((date.month - 1) // 6) * 6 + 1, 1)
     stormy_days_df = read_stormy_sweet_dates()
@@ -1250,11 +1247,6 @@ def plot_detrended_rates():
     plt.show()
 
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 def plot_detrended_rates_with_solar_cycle():
     df = read_detrended_rates()
 
@@ -1341,7 +1333,7 @@ def plot_detrended_rates_with_solar_cycle():
     plt.show()
 
 
-<<<<<<< HEAD
+
 
 def ellen_bestilling(startdate, enddate):
     FONTSIZE_AXES_LABELS = 16
@@ -1417,9 +1409,6 @@ def ellen_bestilling(startdate, enddate):
     plt.show()
 
 
->>>>>>> Stashed changes
-=======
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
 def show_timerange_counter_countrate(startdate, enddate):
     """
     For a time period between startdate and enddate,
@@ -1457,8 +1446,7 @@ def show_timerange_counter_countrate(startdate, enddate):
     #ax1.scatter(df["date"], df["edac_first"],
     #            label="MEX EDAC", color=RAW_EDAC_COLOR)
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
+
     ax2.plot(df["date"], df["daily_rate"], marker="o",
              label="EDAC count rate", color=RATE_EDAC_COLOR)
     """
@@ -1470,9 +1458,7 @@ def show_timerange_counter_countrate(startdate, enddate):
         color=STANDARDIZED_EDAC_COLOR
     )
     """
-=======
-=======
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+
     ax2.plot(df["date"], df["detrended_rate"], marker="o",
              label="Detrended count rate", color=DETRENDED_EDAC_COLOR)
     
@@ -1481,7 +1467,6 @@ def show_timerange_counter_countrate(startdate, enddate):
         linestyle='dashed',
         color=THRESHOLD_COLOR)
 
-<<<<<<< HEAD
     #ax1.axvline(x=datetime.strptime("2014-09-02 01:29:00", "%Y-%m-%d %H:%M:%S"),
     #            linestyle='dashed',
     #            color='black')
@@ -1491,8 +1476,7 @@ def show_timerange_counter_countrate(startdate, enddate):
     #            color='black',
     #            label='MSL/RAD onset time')
     
->>>>>>> Stashed changes
-=======
+
     ax1.axvline(x=datetime.strptime("2014-09-02 01:29:00", "%Y-%m-%d %H:%M:%S"),
                 linestyle='dashed',
                 color='black')
@@ -1502,7 +1486,7 @@ def show_timerange_counter_countrate(startdate, enddate):
     #            color='black',
     #            label='MSL/RAD onset time')
     
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+
     ax2.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
     ax1.set_ylabel("EDAC count [#]", fontsize=FONTSIZE_AXES_LABELS)
     ax2.set_ylabel("Detrended count rate [#/day]", fontsize=FONTSIZE_AXES_LABELS)
@@ -1526,16 +1510,12 @@ def show_timerange_counter_countrate(startdate, enddate):
     ax2.set_ylim([-1, 5])
     ax2.set_xlim(startdate, enddate)
     ax1.set_xlim(startdate, enddate)
-<<<<<<< HEAD
-<<<<<<< Updated upstream
 
-=======
     #major_ticks = pd.date_range(start=startdate+pd.Timedelta(days=3), end=enddate, freq='14D')
     #minor_ticks = pd.date_range(start=startdate+pd.Timedelta(days=3), end=enddate, freq='7D')
     #ax1.set_xticks(major_ticks)
     #ax1.set_xticks(minor_ticks, minor=True)
-    ax1.xaxis.set_minor_locator(mdates.DayLocator())
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+    ax1.xaxis.set_minor_locator(mdates.DayLocator()) 
     major_ticks_locations = [
         pd.to_datetime('2014-09-02 00:00:00')
         + pd.Timedelta(days=3* i)
@@ -1543,9 +1523,9 @@ def show_timerange_counter_countrate(startdate, enddate):
     ]
     # One week away, up to five weeks
     ax1.set_xticks(major_ticks_locations)
-<<<<<<< HEAD
+
     ax1.xaxis.set_minor_locator(mdates.DayLocator())
-=======
+
     #major_ticks = pd.date_range(start=startdate+pd.Timedelta(days=3), end=enddate, freq='14D')
     #minor_ticks = pd.date_range(start=startdate+pd.Timedelta(days=3), end=enddate, freq='7D')
     #ax1.set_xticks(major_ticks)
@@ -1560,26 +1540,23 @@ def show_timerange_counter_countrate(startdate, enddate):
     #ax1.set_xticks(major_ticks_locations)
     # ax1.xaxis.set_minor_locator(mdates.DayLocator())
     
->>>>>>> Stashed changes
-=======
+
     # ax1.xaxis.set_minor_locator(mdates.DayLocator())
     
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+
     ax1.grid()
     ax2.grid()
     ax1.legend(fontsize=FONTSIZE_LEGENDS)
     ax2.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
     # ax3.legend(fontsize=FONTSIZE_LEGENDS, loc='upper right',
     # bbox_to_anchor=(0.9, 1))
-<<<<<<< HEAD
-<<<<<<< Updated upstream
+
     fig.suptitle("SEP event in October 2021", fontsize=16)
-=======
+
     #fig.suptitle("MEX EDAC counter during RAD event in September 2014", fontsize=FONTSIZE_TITLE)
->>>>>>> Stashed changes
-=======
+
     fig.suptitle("MEX EDAC counter during RAD event in September 2014", fontsize=FONTSIZE_TITLE)
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+
     # plt.suptitle('December 5th, 2006 SEP event', fontsize=16)
     fig.subplots_adjust(top=0.93, hspace=0.5)
 
@@ -1598,9 +1575,7 @@ def show_timerange_counter_countrate(startdate, enddate):
     plt.show()
 
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
+
 def plot_zero_set_and_detrended():
     detrended_df = read_detrended_rates()
     zeroset_df = read_zero_set_correct()
@@ -4259,7 +4234,7 @@ def show_example_sweet_sep_fd():
     plt.show()
 
 
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2
+
 if __name__ == "__main__":
     # filename = 'maven_f_flux_hr_may_2015'
     # filename = 'maven_f_flux_hr_july_2023'
@@ -4367,11 +4342,11 @@ if __name__ == "__main__":
     # plot_msl_rad_all()
     # plot_raw_and_zerosetcorrected()
     # plot_rates_only()
-<<<<<<< HEAD
+
     # plot_zero_set_correction()
     # create_msl_rad_dates_sep_plots()
     # create_msl_rad_fd_dates_sweet_found()
-=======
+
 def plot_zero_set_and_detrended():
     detrended_df = read_detrended_rates()
     zeroset_df = read_zero_set_correct()
@@ -6974,36 +6949,15 @@ def ellen_bestilling_3(startdate, enddate):
 
 
 if __name__ == "__main__":
+    print("uoha")
     # filename = 'maven_f_flux_hr_may_2015'
     # filename = 'maven_f_flux_hr_july_2023'
     # plot_one_channel_maven_sep_ion_data(filename) 
     # filename = 'maven_f_flux_hr_sept_2017'
 
-    startdate = datetime.strptime("2012-01-23", "%Y-%m-%d")
-    enddate =  datetime.strptime("2012-01-31", "%Y-%m-%d")
-
-
-    #plot_ima_counts_and_sweet_v3(startdate, enddate)
-
-    startdate = datetime.strptime("2006-02-13", "%Y-%m-%d")
-    enddate =  datetime.strptime("2006-02-26", "%Y-%m-%d")
-    #show_timerange(startdate, enddate)
-    
-    start_date = datetime.strptime("2024-05-16", "%Y-%m-%d")
-    end_date =  datetime.strptime("2024-05-26", "%Y-%m-%d")
-    #plot_msl_rad_sweet(start_date, end_date)
-    #plot_sweet_events_binned_one_plot()
-    
-    #plot_ima_counts_and_sweet(start_date, end_date)
-
-    #plot_raw_edac_scatter(start_date, end_date)
     #plot_maven_sep_ion_data_heatmap(filename)
     filename = 'maven_f_flux_hr_dec_2014'
-    #plot_maven_sep_fluxes_data_heatmap(filename)
-    # create_fd_database_plots()
-    #create_sep_database_plots()
-    plot_one_channel_maven_sep_ion_data(filename)
-    ##plot_maven_sep_fluxes_data_heatmap(filename)
+
     
     
     #plot_stack_maven_sep_ion_data(filename)
@@ -7036,51 +6990,5 @@ if __name__ == "__main__":
     start_date = currentdate - pd.Timedelta(days=1)
     end_date = currentdate + pd.Timedelta(days=1)
 
-
-    currentdate = datetime.strptime("2015-05-05", "%Y-%m-%d")
-    start_date = currentdate - pd.Timedelta(days=3)
-    end_date = currentdate + pd.Timedelta(days=5)
-    #show_timerange(start_date, end_date)
-
-    currentdate = datetime.strptime("2021-10-28", "%Y-%m-%d")
-    start_date = currentdate - pd.Timedelta(days=3)
-    end_date = currentdate + pd.Timedelta(days=3)
-    # plot_ima_sweet_samplewise(start_date, end_date)
-    # safe mode maven 1
     start_date = datetime.strptime("2022-02-22", "%Y-%m-%d")
     end_date = datetime.strptime("2022-05-28", "%Y-%m-%d")
-    # show_timerange_counter_countrate(start_date, end_date)
-    #show_timerange(start_date, end_date)
-    # safe mode maven 2
-
-    startdate = datetime.strptime("2021-10-07", "%Y-%m-%d")
-    enddate = datetime.strptime("2021-11-18", "%Y-%m-%d")
-    current_date = datetime.strptime("2021-10-28", "%Y-%m-%d")
-    startdate = currentdate - pd.Timedelta(days=21)
-    enddate = currentdate + pd.Timedelta(days=21)
-    #ellen_bestilling(startdate, enddate)
-    
-
-
-    current_date = datetime.strptime("2021-07-17", "%Y-%m-%d")
-    startdate = current_date - pd.Timedelta(days=21)
-    enddate = current_date + pd.Timedelta(days=21)
-    #ellen_bestilling_2(startdate, enddate) 
-    currentdate = datetime.strptime("2021-09-17", "%Y-%m-%d")
-    startdate = currentdate - pd.Timedelta(days=21)
-    enddate = currentdate + pd.Timedelta(days=21)
-    #ellen_bestilling_3(startdate, enddate)
-    #show_timerange_counter_countrate(start_date, end_date)
-    
-    filename = 'euhforia_Mars.dsv'
->>>>>>> Stashed changes
-=======
-    #plot_rates_all()
-    # plot_cdf_and_histo_detrended_rates()
-    #plot_verified_events_rates_distributions()
-    #create_stacked_solar_cycle_bins()
-    # create_stacked_solar_cycle_bins()
-    # plot_ima_counts_all()
-    # plot_msl_rad_all()
-    # plot_additional_sep_detection()
->>>>>>> d58c20f29542e4f05db234d288cb9381236486b2

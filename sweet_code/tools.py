@@ -4,8 +4,9 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from parameters import TOOLS_OUTPUT_DIR
-from sweet_code.edac.processing_edac import read_rawedac
-
+from edac.processing_edac import read_rawedac
+from sweet.detrend_edac import read_detrended_rates
+from sweet.detect_sw_events import read_sweet_sep_dates
 
 def find_multiple_edac_increments():
     """
@@ -19,10 +20,18 @@ def find_multiple_edac_increments():
     filtered_df = df[df['edac_diff']>=3]
     print(filtered_df)
     not_valid_dates = filtered_df["datetime"].dt.date
-    print(not_valid_dates)
+
     not_valid_dates.to_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
               sep='\t', index=False)  # Save to file
-    
+    print(f"File {TOOLS_OUTPUT_DIR}/invalid_edac_increases.txt created")
+
+def find_largest_detrended_rates():
+    ""
+    ""
+    df = read_detrended_rates()
+    sorted = df.sort_values(by=["detrended_rate"], ascending=False).iloc[0:15]
+    print(sorted)
+
 """
 def find_missing_dates():
     df = read_rawedac()
@@ -92,8 +101,7 @@ def find_sampling_frequency_in_time_interval():
 
     print("Max time difference: ", df['time_difference_in_minutes'].max())
 
-    if not os.path.exists(TOOLS_OUTPUT_DIR):
-        os.makedirs(TOOLS_OUTPUT_DIR)
+
     df.to_csv(TOOLS_OUTPUT_DIR / f'sampling_frequency_{start_date.date()}_{end_date.date()}.txt',
               sep="\t",
               index=False)
@@ -304,5 +312,17 @@ def find_diff_between_edac_files():
     # print(df_test.iloc[0:50])
 
 
+
+def find_largest_sweet_sep():
+    df = read_sweet_sep_dates()
+
+    sorted = df.sort_values(by=["detrended_rate"], ascending=False).iloc[0:15]
+    print(sorted)
+
+    print(df)
+
 if __name__ == "__main__":
+    
+    # find_multiple_edac_increments()
+
     find_multiple_edac_increments()
