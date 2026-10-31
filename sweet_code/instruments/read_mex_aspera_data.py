@@ -139,21 +139,24 @@ def read_ima_manual_events():
     return df
 
 
-if __name__ == "__main__":
-    # create_ima_background_counts_df()
-    # create_ima_background_counts_df()
-    # df = read_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
-    # print(df.iloc[0:10])
-    # df = resample_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
-    # print(df.iloc[0:20])
-    # df = clean_up_mex_ima_bg_counts().sort_values(by="bg_counts", ascending=False)
-    # print(df.iloc[40:60])
-    # read_aspera_sw_moments()
-    # read_ima_manual_events()
-    #resample_mex_ima_bg_counts()
+def find_missing_dates_in_ima_bg():
+    """
+    There are data gaps in the IMA background
 
-    # apply_sg_filter_to_ima_bg_counts()
-    # df = read_mex_ima_bg_counts()
-    # print(df)
+    """
     df = read_mex_ima_bg_counts()
-    print(df)
+    existing_dates = set(df["datetime"].dt.date)
+
+
+
+
+
+from datetime import datetime
+
+if __name__ == "__main__":
+    df = read_mex_ima_bg_counts()
+    date = datetime.strptime("2004-01-06", "%Y-%m-%d")
+    #print(df[df["datetime"]>=date])
+
+
+

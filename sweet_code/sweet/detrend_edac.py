@@ -136,5 +136,3 @@ def detrend():
 if __name__ == "__main__":
 
     create_detrended_rates()
-    #print(df.sort_values(by="detrended_rate"))
-    #print(df["detrended_rate"].mean())

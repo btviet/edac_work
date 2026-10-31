@@ -76,13 +76,6 @@ def find_sweet_sep():
                     sep='\t', index=False)  # Save to file
     print(f"File {SWEET_EVENTS_DIR}\\{sep_events_filename} created")
 
-    # peaks.loc[:, 'time_difference'] = peaks['date'].diff()
-    # print(peaks[peaks['time_difference'] <= pd.Timedelta(days=1)])
-
-    # peaks.to_csv(SWEET_EVENTS_DIR / filename,
-    #             sep='\t', index=False)  # Save to file
-    # print(f"File {SWEET_EVENTS_DIR}/{filename} created")
-
 
 def test_sweet_sep_variable_threshold():
     print("----- Finding SEP events in the EDAC data --------")
@@ -174,7 +167,6 @@ def read_extra_sweet_sep_events(limit, duration):
     return sep_df
 
 
-
 def find_sweet_forbush_decreases():
     """
     Find the dates where the EDAC count rate
@@ -244,10 +236,6 @@ def read_sweet_sep_dates():
                      skiprows=0, sep="\t", parse_dates=['date'])
     df['type'] = 'SEP'
 
-    # sep_dates = pd.DataFrame(df[['date', "detrended_rate"]],
-    #                         columns=['date', "detrended_rate"])
-    # sep_dates['type'] = 'SEP'
-    # print(sep_dates)
     return df
 
 

@@ -79,7 +79,7 @@ def read_maven_sep_flux_data():
     """
 
     path = MAVEN_SEP_DIR / "omniweb/"
-    df = pd.read_csv(path / 'processed_maven_sep_2014.txt',
+    df = pd.read_csv(path / 'processed_maven_sep_all.txt',
                      sep="\t", parse_dates=['date'])
 
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -89,3 +89,5 @@ if __name__ == "__main__":
     # process_maven_sep_hourly_data()
     # create_merged_maven_sep_flux_data()
     df = read_maven_sep_flux_data()
+
+    
