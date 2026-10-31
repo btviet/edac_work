@@ -1,4 +1,4 @@
-
+import os
 import numpy as np
 import pandas as pd
 
@@ -11,7 +11,9 @@ from processing_edac import (read_rawedac,
                              read_resampled_df, 
                              read_rolling_rates)
 
-from sweet_code.parameters import (RAW_EDAC_COLOR, 
+
+from sweet_code.parameters import (TOOLS_OUTPUT_DIR,
+                                   RAW_EDAC_COLOR, 
                                    ZEROSET_COLOR,
                                    RATE_EDAC_COLOR,
                                    FONTSIZE_LEGENDS,
@@ -21,11 +23,12 @@ from sweet_code.parameters import (RAW_EDAC_COLOR,
 
 def plot_raw_edac_scatter(start_date, end_date):
     """
+    Plot the MEX EDAC count as a scatterplot.
     For small time intervals
     """
     df = read_rawedac()
     df = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
-    print("df: ", df)
+
     fig, ax1 = plt.subplots(figsize=(8, 6))
     ax1.scatter(df["datetime"], df["edac"],
                 label='Raw MEX EDAC',
@@ -39,24 +42,6 @@ def plot_raw_edac_scatter(start_date, end_date):
 
     minor_ticks = pd.date_range(start=start_date, end=end_date, freq='D')
     ax1.set_xticks(minor_ticks, minor=True)
-    """
-    major_ticks_locations = [
-        pd.to_datetime('2024-05-17 12:00:00')
-        + pd.Timedelta(days=2 * i)
-        for i in range(-1, 7)]
-    ax1.set_xticks(major_ticks_locations)
-    
-    minor_ticks_locations = [
-        pd.to_datetime('2024-05-17 12:00:00') + pd.Timedelta(hours=i)
-        for i in range(0, 48 * 2)  # 48 hours * 2 (to cover minor ticks for 2 days)
-    ]
-    """
-    # ax1.set_xticks(minor_ticks_locations, minor=True)
-    # major_x_locator = YearLocator(4)
-    # ax1.xaxis.set_major_locator(major_x_locator)
-    # ax1.minorticks_on()
-    # minor_x_locator = YearLocator(2)
-    # ax1.xaxis.set_minor_locator(minor_x_locator)
 
     # major_y_locator = MultipleLocator(5000)
     # ax1.yaxis.set_major_locator(major_y_locator)
@@ -78,7 +63,6 @@ def plot_raw_edac():
     Plots the MEX EDAC before zero-set correction
     """
     df = read_rawedac()
-    print(df)
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.plot(df["datetime"], df["edac"],
              label='Raw MEX EDAC',
@@ -144,20 +128,6 @@ def plot_raw_and_zerosetcorrected():
     """
     df = read_rawedac()
     df_zero = read_zero_set_correct()
-    print(df)
-
-    # currentdate = datetime.strptime("2006-01-06", "%Y-%m-%d")
-    # startdate = currentdate - pd.Timedelta(days=7)
-    # enddate = currentdate + pd.Timedelta(days=7)
-
-    # df = df[
-    #    (df["datetime"] > startdate) &
-    #    (df["datetime"] < enddate)
-    #    ]
-    # df_zero = df_zero[(df_zero["datetime"] > startdate) &
-    # (df_zero["datetime"] < enddate)
-    # ]
-    
 
     fig, ax1 = plt.subplots(figsize=(10, 6))
     ax1.plot(df["datetime"], df["edac"],
@@ -210,7 +180,6 @@ def plot_rates_only():
     MEX EDAC daily rate only
     """
     df = read_resampled_df()
-    print(df)
     rate_mean = round(df['daily_rate'].mean(), 3)
     print(df.sort_values(by='daily_rate'))
 
@@ -239,11 +208,10 @@ def plot_rates_only():
     ax1.set_ylim([0,20])
     # ax1.legend(fontsize=FONTSIZE_LEGENDS, loc='upper left')
     ax1.grid()
-    # fig.suptitle("brat")
     fig.suptitle("MEX EDAC daily rate between Jan. 2004 and Aug. 2025",
                  fontsize=FONTSIZE_TITLE)
     plt.tight_layout(pad=1.0)
-    plt.savefig('daily_rate_mex_edac_v3.eps',
+    plt.savefig('daily_rate_mex_edac_v3.png',
                 dpi=300, transparent=False)
     plt.show()
     plt.show()
@@ -255,7 +223,7 @@ def plot_rolling_rate():
     fig, ax1 = plt.subplots(figsize=(10, 7))
     ax1.plot(df["date"], df["daily_rate"],
              label=f'MEX EDAC daily rate, mean = {rate_mean} counts per day',
-             color=BRAT_GREEN,
+             color='green',
              linewidth=2)
     ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
     ax1.set_ylabel("MEX EDAC count rate [#/day]",
@@ -276,14 +244,59 @@ def plot_rolling_rate():
     ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
     ax1.legend(fontsize=FONTSIZE_LEGENDS)
     ax1.grid()
-    # fig.suptitle("brat")
     fig.suptitle("MEX EDAC daily rate between Jan 2004 and Apr 2024",
                  fontsize=FONTSIZE_TITLE)
     plt.tight_layout(pad=1.0)
     plt.show()
 
 
+def create_large_edac_increments_plots():
+    """
+    Create plots where the MEX EDAC increments by more than
+    2 from one sample to the next.
+    The plots should be inspected in case there are data anomalies.
+    """
+    df = read_rawedac()
+
+    invalid_dates = pd.read_csv(TOOLS_OUTPUT_DIR / "invalid_edac_increases.txt",
+                                parse_dates=["datetime"])
+
+    date_list = invalid_dates["datetime"].tolist()
+    for date in date_list:
+        print(date)
+        start_date = date - pd.Timedelta(days=14)
+        end_date = date + pd.Timedelta(days=14)
+        df_sliced = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
+
+        fig, ax1 = plt.subplots(figsize=(12, 8))
+        ax1.scatter(df_sliced["datetime"], df_sliced["edac"],
+                label='Raw MEX EDAC',
+                color=RAW_EDAC_COLOR,
+                linewidth=2)
+        ax1.set_xlabel("Date", fontsize=FONTSIZE_AXES_LABELS)
+        ax1.set_ylabel("MEX EDAC count [#]", fontsize=FONTSIZE_AXES_LABELS)
+        ax1.tick_params(which='minor', length=6)
+        ax1.tick_params(which='major', length=10, labelsize=FONTSIZE_AXES_TICKS)
+        ax1.set_xticks(ax1.get_xticks())
+        ax1.set_xticks(ax1.get_xticks(), ax1.get_xticklabels(), rotation=20, ha='right')
+        ax1.xaxis.set_minor_locator(DayLocator())
+        ax1.legend()
+        ax1.grid()
+        fig.suptitle(f'{date}', fontsize=FONTSIZE_TITLE)
+
+        plt.tight_layout(pad=1.0)
+
+        if not os.path.exists("large_edac_increments"):
+            os.makedirs("large_edac_increments")
+        plt.savefig(f'large_edac_increments/{date.date()}.png',
+            dpi=300,
+            transparent=False
+        )
+        
+        plt.close()
+
 if __name__ == "__main__":
-    #plot_raw_edac()
-    plot_zero_set_correction()
-    #plot_rates_only()
+    # plot_raw_edac()
+    # plot_zero_set_correction()
+    plot_rates_only()
+    #create_large_edac_increments_plots()
